@@ -24,6 +24,10 @@ class Account
     #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
     private string $balance = '0.00';
 
+    #[ORM\ManyToOne(inversedBy: 'accounts')]
+    #[ORM\JoinColumn(name: 'currency_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
+    private ?Currency $currency = null;
+
    #[ORM\Column(type: Types::STRING, enumType: StatusAccount::class)]
     private StatusAccount $status = StatusAccount::ACTIVE;
 
@@ -58,6 +62,18 @@ class Account
     public function setBalance(string $balance): self
     {
         $this->balance = $balance;
+
+        return $this;
+    }
+
+    public function getCurrency(): ?Currency
+    {
+        return $this->currency;
+    }
+
+    public function setCurrency(?Currency $currency): self
+    {
+        $this->currency = $currency;
 
         return $this;
     }
