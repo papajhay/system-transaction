@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Entity\Account;
+use App\Entity\Currency;
 use App\Controller\Admin\AccountCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
@@ -37,6 +38,12 @@ class DashboardController extends AbstractDashboardController
             'Accounts',
             'fa fa-building-columns',
             Account::class
+        );
+
+        yield MenuItem::linkToCrud(
+            'Currencies',
+            'fa fa-coins',
+            Currency::class
         );
     }
 }

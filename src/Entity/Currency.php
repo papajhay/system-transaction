@@ -8,9 +8,14 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
+use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 
 #[ORM\Entity]
 #[ORM\Table(name: 'currency')]
+#[UniqueEntity(
+    fields: ['code'],
+    message: 'This currency code already exists.'
+)]
 class Currency
 {
     #[ORM\Id]
@@ -81,5 +86,10 @@ class Currency
     public function getAccounts(): Collection
     {
         return $this->accounts;
+    }
+
+    public function __toString(): string
+    {
+        return $this->symbol . ' - ' . $this->name;
     }
 }
