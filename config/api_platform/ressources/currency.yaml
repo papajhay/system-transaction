@@ -1,0 +1,18 @@
+resources:
+    App\Entity\Currency:
+        operations:
+            ApiPlatform\Metadata\Get: ~
+            ApiPlatform\Metadata\GetCollection: ~
+            ApiPlatform\Metadata\Post: ~
+            ApiPlatform\Metadata\Put: ~
+            ApiPlatform\Metadata\Patch: ~
+            ApiPlatform\Metadata\Delete: ~
+      
+properties:
+    App\Entity\Currency:
+        id:
+            readable: true
+            writable: false
+        accounts:
+            readable: false
+            writable: false
