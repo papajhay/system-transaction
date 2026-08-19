@@ -1,0 +1,39 @@
+resources:
+    App\Entity\Operation:
+        operations:
+            ApiPlatform\Metadata\Get: {}
+            ApiPlatform\Metadata\GetCollection: {}
+            ApiPlatform\Metadata\Post: {}
+            ApiPlatform\Metadata\Put: {}
+            ApiPlatform\Metadata\Patch: {}
+            ApiPlatform\Metadata\Delete: {}
+
+properties:
+    App\Entity\Operation:
+        id:
+            readable: true
+            writable: false
+        account:
+            readable: true
+            writable: true
+        transfer:
+            readable: true
+            writable: true
+        type:
+            readable: true
+            writable: true
+        amount:
+            readable: true
+            writable: true
+        balanceBefore:
+            readable: true
+            writable: true
+        balanceAfter:
+            readable: true
+            writable: true
+        createdAt:
+            readable: true
+            writable: false
+        updatedAt:
+            readable: true
+            writable: false
