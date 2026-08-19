@@ -70,5 +70,50 @@ services:
         autoconfigure: false
         public: false
 
+    operation.search_filter:
+        parent: 'api_platform.doctrine.orm.search_filter'
+        arguments:
+            $properties:
+                account: exact
+                transfer: exact
+        tags: ['api_platform.filter']
+        autowire: false
+        autoconfigure: false
+        public: false
+
+    operation.enum_filter:
+        parent: 'api_platform.doctrine.orm.backed_enum_filter'
+        arguments:
+            $properties:
+                type: ~
+        tags: ['api_platform.filter']
+        autowire: false
+        autoconfigure: false
+        public: false
+
+    operation.order_filter:
+        parent: 'api_platform.doctrine.orm.order_filter'
+        arguments:
+            $properties:
+                amount: ~
+                balanceBefore: ~
+                balanceAfter: ~
+                createdAt: ~
+        tags: ['api_platform.filter']
+        autowire: false
+        autoconfigure: false
+        public: false
+
+    operation.date_filter:
+        parent: 'api_platform.doctrine.orm.date_filter'
+        arguments:
+            $properties:
+                createdAt: ~
+                updatedAt: ~
+        tags: ['api_platform.filter']
+        autowire: false
+        autoconfigure: false
+        public: false
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones

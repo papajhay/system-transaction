@@ -2,7 +2,12 @@ resources:
     App\Entity\Operation:
         operations:
             ApiPlatform\Metadata\Get: {}
-            ApiPlatform\Metadata\GetCollection: {}
+            ApiPlatform\Metadata\GetCollection:
+                filters:
+                    - operation.search_filter
+                    - operation.enum_filter
+                    - operation.order_filter
+                    - operation.date_filter
             ApiPlatform\Metadata\Post: {}
             ApiPlatform\Metadata\Put: {}
             ApiPlatform\Metadata\Patch: {}
