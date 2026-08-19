@@ -6,6 +6,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\Account;
 use App\Entity\Currency;
+use App\Entity\Transfer;
 use App\Controller\Admin\AccountCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
@@ -44,6 +45,12 @@ class DashboardController extends AbstractDashboardController
             'Currencies',
             'fa fa-coins',
             Currency::class
+        );
+
+        yield MenuItem::linkToCrud(
+            'Transfers',
+            'fa fa-clipboard',
+            Transfer::class
         );
     }
 }
