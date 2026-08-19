@@ -1,9 +1,59 @@
 resources:
     App\Entity\Transfer:
         operations:
-            ApiPlatform\Metadata\Get: ~
-            ApiPlatform\Metadata\GetCollection: ~
-            ApiPlatform\Metadata\Post: ~
-            ApiPlatform\Metadata\Put: ~
-            ApiPlatform\Metadata\Patch: ~
-            ApiPlatform\Metadata\Delete: ~
+            ApiPlatform\Metadata\Get: {}
+            ApiPlatform\Metadata\GetCollection:
+                filters:
+                    - transfer.search_filter
+                    - transfer.enum_filter
+                    - transfer.order_filter
+                    - transfer.date_filter
+            ApiPlatform\Metadata\Post: {}
+            ApiPlatform\Metadata\Put: {}
+            ApiPlatform\Metadata\Patch: {}
+            ApiPlatform\Metadata\Delete: {}
+
+properties:
+    App\Entity\Transfer:
+        id:
+            readable: true
+            writable: false
+        token:
+            readable: true
+            writable: true
+        reference:
+            readable: true
+            writable: true
+        senderAccount:
+            readable: true
+            writable: true
+        receiverAccount:
+            readable: true
+            writable: true
+        amount:
+            readable: true
+            writable: true
+        currency:
+            readable: true
+            writable: true
+        type:
+            readable: true
+            writable: true
+        status:
+            readable: true
+            writable: true
+        description:
+            readable: true
+            writable: true
+        processedAt:
+            readable: true
+            writable: false
+        expiresAt:
+            readable: true
+            writable: true
+        createdAt:
+            readable: true
+            writable: false
+        updatedAt:
+            readable: true
+            writable: false

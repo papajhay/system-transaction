@@ -19,5 +19,56 @@ services:
     App\:
         resource: '../src/'
 
+    transfer.search_filter:
+        parent: 'api_platform.doctrine.orm.search_filter'
+        arguments:
+            $properties:
+                token: exact
+                reference: partial
+                senderAccount: exact
+                receiverAccount: exact
+                currency: exact
+        tags: ['api_platform.filter']
+        autowire: false
+        autoconfigure: false
+        public: false
+
+    transfer.enum_filter:
+        parent: 'api_platform.doctrine.orm.backed_enum_filter'
+        arguments:
+            $properties:
+                type: ~
+                status: ~
+        tags: ['api_platform.filter']
+        autowire: false
+        autoconfigure: false
+        public: false
+
+    transfer.order_filter:
+        parent: 'api_platform.doctrine.orm.order_filter'
+        arguments:
+            $properties:
+                amount: ~
+                reference: ~
+                createdAt: ~
+                expiresAt: ~
+        tags: ['api_platform.filter']
+        autowire: false
+        autoconfigure: false
+        public: false
+
+    transfer.date_filter:
+        parent: 'api_platform.doctrine.orm.date_filter'
+        arguments:
+            $properties:
+                processedAt: ~
+                expiresAt: ~
+                createdAt: ~
+                updatedAt: ~
+        tags: ['api_platform.filter']
+        autowire: false
+        autoconfigure: false
+        public: false
+
     # add more service definitions when explicit configuration is needed
     # please note that last definitions always *replace* previous ones
