@@ -1,0 +1,9 @@
+resources:
+    App\Entity\Transfer:
+        operations:
+            ApiPlatform\Metadata\Get: ~
+            ApiPlatform\Metadata\GetCollection: ~
+            ApiPlatform\Metadata\Post: ~
+            ApiPlatform\Metadata\Put: ~
+            ApiPlatform\Metadata\Patch: ~
+            ApiPlatform\Metadata\Delete: ~
