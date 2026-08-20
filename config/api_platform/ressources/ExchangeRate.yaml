@@ -1,0 +1,30 @@
+resources:
+    App\Entity\ExchangeRate:
+        operations:
+            ApiPlatform\Metadata\Get: {}
+            ApiPlatform\Metadata\GetCollection: {}
+            ApiPlatform\Metadata\Post: {}
+            ApiPlatform\Metadata\Put: {}
+            ApiPlatform\Metadata\Patch: {}
+            ApiPlatform\Metadata\Delete: {}
+
+properties:
+    App\Entity\ExchangeRate:
+        id:
+            readable: true
+            writable: false
+        baseCurrency:
+            readable: true
+            writable: true
+        targetCurrency:
+            readable: true
+            writable: true
+        rate:
+            readable: true
+            writable: true
+        createdAt:
+            readable: true
+            writable: false
+        updatedAt:
+            readable: true
+            writable: false
