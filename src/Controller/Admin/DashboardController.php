@@ -6,6 +6,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\Account;
 use App\Entity\Currency;
+use App\Entity\ExchangeRate;
 use App\Entity\Operation;
 use App\Entity\Transfer;
 use App\Controller\Admin\AccountCrudController;
@@ -46,6 +47,12 @@ class DashboardController extends AbstractDashboardController
             'Currencies',
             'fa fa-coins',
             Currency::class
+        );
+
+        yield MenuItem::linkToCrud(
+            'Exchange rates',
+            'fa fa-arrow-right-arrow-left',
+            ExchangeRate::class
         );
 
         yield MenuItem::linkToCrud(
