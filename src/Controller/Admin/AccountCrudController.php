@@ -55,11 +55,7 @@ class AccountCrudController extends AbstractCrudController
                 'Closed' => StatusAccount::CLOSED,
             ])
             ->setRequired(true)
-            ->renderAsBadges([
-                StatusAccount::ACTIVE->value => 'success',
-                StatusAccount::SUSPENDED->value => 'warning',
-                StatusAccount::CLOSED->value => 'danger',
-            ]);
+            ->renderAsBadges(StatusAccount::badgeStyles());
 
         yield DateTimeField::new('createdAt', 'Created at')
             ->hideOnForm();
