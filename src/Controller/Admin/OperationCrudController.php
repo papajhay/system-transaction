@@ -73,10 +73,7 @@ final class OperationCrudController extends AbstractCrudController
                 'Debit' => TypeOperation::DEBIT,
                 'Credit' => TypeOperation::CREDIT,
             ])
-            ->renderAsBadges([
-                TypeOperation::DEBIT->value => 'danger',
-                TypeOperation::CREDIT->value => 'success',
-            ])
+            ->renderAsBadges(TypeOperation::getBadgeClass())
             ->setFormTypeOption('disabled', true);
 
         yield NumberField::new('amount', 'Amount')

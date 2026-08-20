@@ -64,11 +64,7 @@ final class TransferCrudController extends AbstractCrudController
                 'Transfer' => TypeTransfer::TRANSFER,
             ])
             ->setRequired(true)
-            ->renderAsBadges([
-                TypeTransfer::DEPOSIT->value => 'success',
-                TypeTransfer::WITHDRAWAL->value => 'danger',
-                TypeTransfer::TRANSFER->value => 'primary',
-            ]);
+            ->renderAsBadges([TypeTransfer::typeBadgeStyles()]);
 
         yield ChoiceField::new('status', 'Status')
             ->setChoices([
@@ -77,11 +73,7 @@ final class TransferCrudController extends AbstractCrudController
                 'Failed' => StatusTransfer::FAILED,
             ])
             ->setRequired(true)
-            ->renderAsBadges([
-                StatusTransfer::PENDING->value => 'warning',
-                StatusTransfer::COMPLETED->value => 'success',
-                StatusTransfer::FAILED->value => 'danger',
-            ]);
+            ->renderAsBadges([StatusTransfer::statusBadgeStyles()]);
 
         yield TextareaField::new('description', 'Description')
             ->setNumOfRows(3)
