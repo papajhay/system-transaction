@@ -1,0 +1,39 @@
+resources:
+    App\Entity\LedgerEntry:
+        operations:
+            ApiPlatform\Metadata\Get: {}
+            ApiPlatform\Metadata\GetCollection: {}
+            ApiPlatform\Metadata\Post: {}
+            ApiPlatform\Metadata\Put: {}
+            ApiPlatform\Metadata\Patch: {}
+            ApiPlatform\Metadata\Delete: {}
+
+properties:
+    App\Entity\LedgerEntry:
+        id:
+            readable: true
+            writable: false
+        transfer:
+            readable: true
+            writable: true
+        fromCurrency:
+            readable: true
+            writable: true
+        toCurrency:
+            readable: true
+            writable: true
+        exchangeRate:
+            readable: true
+            writable: true
+        sourceAmount:
+            readable: true
+            writable: true
+        targetAmount:
+            readable: true
+            writable: true
+        createdAt:
+            readable: true
+            writable: false
+        updatedAt:
+            readable: true
+            writable: false
