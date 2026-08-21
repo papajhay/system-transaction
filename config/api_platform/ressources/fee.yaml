@@ -1,0 +1,26 @@
+resources:
+    App\Entity\Fee:
+        operations:
+            ApiPlatform\Metadata\Get: {}
+            ApiPlatform\Metadata\GetCollection: {}
+
+properties:
+    App\Entity\Fee:
+        id:
+            readable: true
+            writable: false
+        transfer:
+            readable: true
+            writable: false
+        type:
+            readable: true
+            writable: false
+        amount:
+            readable: true
+            writable: false
+        createdAt:
+            readable: true
+            writable: false
+        updatedAt:
+            readable: true
+            writable: false
