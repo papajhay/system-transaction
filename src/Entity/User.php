@@ -32,7 +32,7 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     #[ORM\Column(type: Types::STRING, length: 255)]
     private string $password;
 
-    #[ORM\Column(type: Types::STRING, enumType: Role::class, options: ['default' => 'user'])]
+    #[ORM\Column(type: Types::STRING, enumType: Role::class,  options: ['default' => 'ROLE_USER'])]
     private Role $role = Role::USER;
 
     #[ORM\Column(name: 'remember_token', type: Types::STRING, length: 100, nullable: true)]
