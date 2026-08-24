@@ -2,24 +2,67 @@
 
 {% block title %}Sign in{% endblock %}
 
+{% block stylesheets %}
+    {{ parent() }}
+
+    <link rel="stylesheet" href="{{ asset('css/login.css') }}">
+{% endblock %}
+
 {% block body %}
-    <main>
-        <h1>Sign in</h1>
+    <main class="login-page">
+        <div class="login-card">
 
-        {% if error %}
-            <div role="alert">{{ error.messageKey|trans(error.messageData, 'security') }}</div>
-        {% endif %}
+            <h1>Sign in</h1>
 
-        <form method="post" action="{{ path('app_login') }}">
-            <label for="email">Email</label>
-            <input type="email" id="email" name="email" value="{{ last_username }}" required autofocus>
+            {% if error %}
+                <div class="login-error" role="alert">
+                    {{ error.messageKey|trans(error.messageData, 'security') }}
+                </div>
+            {% endif %}
 
-            <label for="password">Password</label>
-            <input type="password" id="password" name="password" required>
+            <form method="post"
+                  action="{{ path('app_login') }}"
+                  class="login-form">
 
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token('authenticate') }}">
+                <div class="form-group">
+                    <label for="email">Email</label>
 
-            <button type="submit">Sign in</button>
-        </form>
+                    <input
+                        type="email"
+                        id="email"
+                        name="email"
+                        value="{{ last_username }}"
+                        required
+                        autofocus
+                        autocomplete="email"
+                    >
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+
+                    <input
+                        type="password"
+                        id="password"
+                        name="password"
+                        required
+                        autocomplete="current-password"
+                    >
+                </div>
+
+                <input
+                    type="hidden"
+                    name="_csrf_token"
+                    value="{{ csrf_token('authenticate') }}"
+                >
+
+                <button type="submit" class="login-button">
+                    Sign in
+                </button>
+            </form>
+
+        </div>
     </main>
+    {% block javascripts %}
+    {% endblock %}
 {% endblock %}
