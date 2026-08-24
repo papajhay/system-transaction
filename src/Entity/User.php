@@ -95,8 +95,8 @@ class User implements UserInterface, PasswordAuthenticatedUserInterface
     {
         $roles = ['ROLE_USER'];
 
-        if ($this->role === Role::ADMIN) {
-            $roles[] = 'ROLE_ADMIN';
+        if ($this->role !== Role::USER) {
+            $roles[] = $this->role->value;
         }
 
         return $roles;
