@@ -1,4 +1,9 @@
 api_platform:
+    swagger:
+        http_auth:
+            JWT:
+                scheme: bearer
+                bearerFormat: JWT
     formats:
         json:
             mime_types:
