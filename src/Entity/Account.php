@@ -8,9 +8,10 @@ use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use App\Enum\StatusAccount;
+use App\Enum\TypeAccount;
 
 #[ORM\Entity]
-#[ORM\Table(name: 'account')]
+#[ORM\Table(name: 'accounts')]
 class Account
 {
     #[ORM\Id]
@@ -21,14 +22,20 @@ class Account
     #[ORM\Column(name: 'account_number', type: Types::STRING, length: 255, unique: true)]
     private string $accountNumber;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2)]
+    #[ORM\Column(type: Types::DECIMAL, precision: 15, scale: 2, options: ['default' => '0'])]
     private string $balance = '0.00';
+
+    #[ORM\Column(type: Types::STRING, enumType: TypeAccount::class, options: ['default' => 'user'])]
+    private TypeAccount $type = TypeAccount::USER;
+
+    #[ORM\Column(name: 'system_name', type: Types::STRING, length: 255, nullable: true)]
+    private ?string $systemName = null;
 
     #[ORM\ManyToOne(inversedBy: 'accounts')]
     #[ORM\JoinColumn(name: 'currency_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
     private ?Currency $currency = null;
 
-   #[ORM\Column(type: Types::STRING, enumType: StatusAccount::class)]
+    #[ORM\Column(type: Types::STRING, enumType: StatusAccount::class, options: ['default' => 'active'])]
     private StatusAccount $status = StatusAccount::ACTIVE;
 
     #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
@@ -62,6 +69,30 @@ class Account
     public function setBalance(string $balance): self
     {
         $this->balance = $balance;
+
+        return $this;
+    }
+
+    public function getType(): TypeAccount
+    {
+        return $this->type;
+    }
+
+    public function setType(TypeAccount $type): self
+    {
+        $this->type = $type;
+
+        return $this;
+    }
+
+    public function getSystemName(): ?string
+    {
+        return $this->systemName;
+    }
+
+    public function setSystemName(?string $systemName): self
+    {
+        $this->systemName = $systemName;
 
         return $this;
     }

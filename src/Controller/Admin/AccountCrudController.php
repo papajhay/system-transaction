@@ -13,7 +13,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
+use App\Enum\TypeAccount;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use Symfony\Component\Uid\Uuid;
@@ -30,7 +30,12 @@ class AccountCrudController extends AbstractCrudController
         return $crud
             ->setEntityLabelInSingular('Account')
             ->setEntityLabelInPlural('Accounts')
-            ->setSearchFields(['accountNumber', 'status']);
+             ->setSearchFields([
+                'accountNumber',
+                'systemName',
+                'status',
+                'type',
+            ]);
     }
 
     public function configureFields(string $pageName): iterable
@@ -45,6 +50,16 @@ class AccountCrudController extends AbstractCrudController
             ->setRequired(true)
             ->setFormTypeOption('disabled', true);
 
+        yield ChoiceField::new('type', 'Type')
+            ->setChoices([
+                'User' => TypeAccount::USER,
+                'System' => TypeAccount::SYSTEM,
+            ])
+            ->setRequired(true);
+
+        yield TextField::new('systemName', 'System name')
+            ->setRequired(false);
+
         yield AssociationField::new('currency', 'Currency')
             ->setRequired(true);
 
@@ -56,12 +71,6 @@ class AccountCrudController extends AbstractCrudController
             ])
             ->setRequired(true)
             ->renderAsBadges(StatusAccount::badgeStyles());
-
-        yield DateTimeField::new('createdAt', 'Created at')
-            ->hideOnForm();
-
-        yield DateTimeField::new('updatedAt', 'Updated at')
-            ->hideOnForm();
     }
 
     public function configureActions(Actions $actions): Actions
