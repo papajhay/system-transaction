@@ -7,6 +7,7 @@ namespace App\DataFixtures;
 use App\Entity\Account;
 use App\Entity\Currency;
 use App\Enum\StatusAccount;
+use App\Enum\TypeAccount;
 use DateTimeImmutable;
 use Doctrine\Bundle\FixturesBundle\Fixture;
 use Doctrine\Common\DataFixtures\DependentFixtureInterface;
@@ -40,6 +41,8 @@ final class AccountFixtures extends Fixture implements DependentFixtureInterface
             $account = (new Account())
                 ->setAccountNumber($data['number'])
                 ->setBalance('0.00')
+                ->setType(TypeAccount::SYSTEM)
+                ->setSystemName('fees')
                 ->setStatus(StatusAccount::ACTIVE)
                 ->setCurrency($currency)
                 ->setCreatedAt($now)
