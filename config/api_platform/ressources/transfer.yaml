@@ -12,6 +12,22 @@ resources:
             ApiPlatform\Metadata\Put: {}
             ApiPlatform\Metadata\Patch: {}
             ApiPlatform\Metadata\Delete: {}
+            init_deposit:
+                class: ApiPlatform\Metadata\Post
+                uriTemplate: /transactions/init-deposit
+                input: App\Dto\InitDepositInput
+                output: App\Dto\TransactionResponse
+                processor: App\State\DepositProcessor
+                status: 201
+                security: "is_granted('ROLE_USER')"
+            execute_deposit:
+                class: ApiPlatform\Metadata\Post
+                uriTemplate: /transactions/execute-deposit
+                input: App\Dto\ExecuteDepositInput
+                output: App\Dto\TransactionResponse
+                processor: App\State\DepositProcessor
+                status: 201
+                security: "is_granted('ROLE_USER')"
 
 properties:
     App\Entity\Transfer:
