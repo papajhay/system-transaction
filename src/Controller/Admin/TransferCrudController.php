@@ -6,14 +6,11 @@ namespace App\Controller\Admin;
 
 use App\Entity\Transfer;
 use App\Enum\StatusTransfer;
-use App\Enum\TypeTransfer;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
-use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
@@ -38,33 +35,26 @@ final class TransferCrudController extends AbstractCrudController
         yield TextField::new('reference', 'Reference')
             ->setRequired(true);
 
-        yield TextField::new('token', 'Token')
-            ->setRequired(true);
-
-        yield AssociationField::new('senderAccount', 'Sender')
-            ->setFormTypeOption('choice_label', 'accountNumber')
-            ->setRequired(false);
-
-        yield AssociationField::new('receiverAccount', 'Receiver')
-            ->setFormTypeOption('choice_label', 'accountNumber')
-            ->setRequired(false);
-
         yield NumberField::new('amount', 'Amount')
-            ->setNumDecimals(2)
-            ->setStoredAsString(true)
-            ->setRequired(true);
+        ->setNumDecimals(2)
+        ->setStoredAsString(true)
+        ->setRequired(true)
+        ->formatValue(function ($value, $entity) {
+            if ($value === null || $value === '') {
+                return '';
+            }
+            
+            $amount = (float) $value;
+            
+            // $entity est déjà l'objet Transfer, pas besoin de getInstance()
+            $currency = $entity->getCurrency();
+            $symbol = $currency ? $currency->getSymbol() : 'Ar';
+            $formatted = number_format($amount, 2, ',', ' ');
+            
+            return $formatted . ' ' . $symbol;
+        });
 
-        yield AssociationField::new('currency', 'Currency')
-            ->setRequired(true);
-
-        yield ChoiceField::new('type', 'Type')
-            ->setChoices([
-                'Deposit' => TypeTransfer::DEPOSIT,
-                'Withdrawal' => TypeTransfer::WITHDRAWAL,
-                'Transfer' => TypeTransfer::TRANSFER,
-            ])
-            ->setRequired(true)
-            ->renderAsBadges(TypeTransfer::typeBadgeStyles());
+    
 
         yield ChoiceField::new('status', 'Status')
             ->setChoices([
@@ -79,18 +69,6 @@ final class TransferCrudController extends AbstractCrudController
             ->setNumOfRows(3)
             ->setMaxLength(255)
             ->hideOnIndex();
-
-        yield DateTimeField::new('processedAt', 'Processed at')
-            ->hideOnForm();
-
-        yield DateTimeField::new('expiresAt', 'Expires at')
-            ->hideOnForm();
-
-        yield DateTimeField::new('createdAt', 'Created at')
-            ->hideOnForm();
-
-        yield DateTimeField::new('updatedAt', 'Updated at')
-            ->hideOnForm();
     }
 
     public function configureActions(Actions $actions): Actions
