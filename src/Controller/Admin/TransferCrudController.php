@@ -36,26 +36,24 @@ final class TransferCrudController extends AbstractCrudController
             ->setRequired(true);
 
         yield NumberField::new('amount', 'Amount')
-        ->setNumDecimals(2)
-        ->setStoredAsString(true)
-        ->setRequired(true)
-        ->formatValue(function ($value, $entity) {
-            if ($value === null || $value === '') {
-                return '';
-            }
-            
-            $amount = (float) $value;
-            
-            // $entity est déjà l'objet Transfer, pas besoin de getInstance()
-            $currency = $entity->getCurrency();
-            $symbol = $currency ? $currency->getSymbol() : 'Ar';
-            $formatted = number_format($amount, 2, ',', ' ');
-            
-            return $formatted . ' ' . $symbol;
+            ->setNumDecimals(2)
+            ->setStoredAsString(true)
+            ->setRequired(true)
+            ->formatValue(function ($value, $entity) {
+                if ($value === null || $value === '') {
+                    return '';
+                }
+                
+                $amount = (float) $value;
+                
+                // $entity est déjà l'objet Transfer, pas besoin de getInstance()
+                $currency = $entity->getCurrency();
+                $symbol = $currency ? $currency->getSymbol() : 'Ar';
+                $formatted = number_format($amount, 2, ',', ' ');
+                
+                return $formatted . ' ' . $symbol;
         });
-
-    
-
+  
         yield ChoiceField::new('status', 'Status')
             ->setChoices([
                 'Pending' => StatusTransfer::PENDING,

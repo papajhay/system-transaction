@@ -57,7 +57,7 @@ security:
         - { path: ^/login$, roles: PUBLIC_ACCESS }
         - { path: ^/api/login_check$, roles: PUBLIC_ACCESS }
         - { path: ^/api/docs, roles: PUBLIC_ACCESS }
-        - { path: ^/api/transactions/(init-deposit|execute-deposit)$, methods: [POST], roles: ROLE_USER }
+        - { path: ^/api/transactions/(init-deposit|execute-deposit|init-withdrawal|execute-withdrawal)$, methods: [POST], roles: ROLE_USER }
         - { path: ^/api, methods: [GET], roles: ROLE_USER }
         - { path: ^/api, methods: [POST, PUT, PATCH, DELETE], roles: ROLE_ADMIN }
         - { path: ^/admin, roles: ROLE_ADMIN }
