@@ -53,9 +53,7 @@ final class TransferCrudController extends AbstractCrudController
                 
                 return $formatted . ' ' . $symbol;
         });
-
-    
-
+  
         yield ChoiceField::new('status', 'Status')
             ->setChoices([
                 'Pending' => StatusTransfer::PENDING,
