@@ -44,6 +44,38 @@ resources:
                 processor: App\State\WithdrawalProcessor
                 status: 201
                 security: "is_granted('ROLE_USER')"
+            init_transfer:
+                class: ApiPlatform\Metadata\Post
+                uriTemplate: /transactions/init-transfer
+                input: App\Dto\InitTransferInput
+                output: App\Dto\TransactionResponse
+                processor: App\State\TransferProcessor
+                status: 201
+                security: "is_granted('ROLE_USER')"
+            execute_transfer:
+                class: ApiPlatform\Metadata\Post
+                uriTemplate: /transactions/execute-transfer
+                input: App\Dto\ExecuteTransferInput
+                output: App\Dto\TransactionResponse
+                processor: App\State\TransferProcessor
+                status: 201
+                security: "is_granted('ROLE_USER')"
+            init_multi_transfer:
+                class: ApiPlatform\Metadata\Post
+                uriTemplate: /transactions/init-multi-transfer
+                input: App\Dto\InitMultiTransferInput
+                output: App\Dto\TransactionResponse
+                processor: App\State\TransferProcessor
+                status: 201
+                security: "is_granted('ROLE_USER')"
+            execute_multi_transfer:
+                class: ApiPlatform\Metadata\Post
+                uriTemplate: /transactions/execute-multi-transfer
+                input: App\Dto\ExecuteMultiTransferInput
+                output: App\Dto\TransactionResponse
+                processor: App\State\TransferProcessor
+                status: 201
+                security: "is_granted('ROLE_USER')"
 
 properties:
     App\Entity\Transfer:
