@@ -28,6 +28,22 @@ resources:
                 processor: App\State\DepositProcessor
                 status: 201
                 security: "is_granted('ROLE_USER')"
+            init_withdrawal:
+                class: ApiPlatform\Metadata\Post
+                uriTemplate: /transactions/init-withdrawal
+                input: App\Dto\InitWithdrawalInput
+                output: App\Dto\TransactionResponse
+                processor: App\State\WithdrawalProcessor
+                status: 201
+                security: "is_granted('ROLE_USER')"
+            execute_withdrawal:
+                class: ApiPlatform\Metadata\Post
+                uriTemplate: /transactions/execute-withdrawal
+                input: App\Dto\ExecuteWithdrawalInput
+                output: App\Dto\TransactionResponse
+                processor: App\State\WithdrawalProcessor
+                status: 201
+                security: "is_granted('ROLE_USER')"
 
 properties:
     App\Entity\Transfer:
