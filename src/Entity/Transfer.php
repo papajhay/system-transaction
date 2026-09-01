@@ -40,6 +40,16 @@ class Transfer
     #[ORM\JoinColumn(name: 'currency_id', referencedColumnName: 'id', nullable: false)]
     private ?Currency $currency = null;
 
+    #[ORM\Column(name: 'received_amount', type: Types::DECIMAL, precision: 20, scale: 2)]
+    private string $receivedAmount;
+
+    #[ORM\ManyToOne(targetEntity: Currency::class)]
+    #[ORM\JoinColumn(name: 'received_currency_id', referencedColumnName: 'id', nullable: false)]
+    private ?Currency $receivedCurrency = null;
+
+    #[ORM\Column(name: 'exchange_rate', type: Types::DECIMAL, precision: 20, scale: 10)]
+    private string $exchangeRate;
+
     #[ORM\Column(type: Types::STRING, enumType: TypeTransfer::class)]
     private TypeTransfer $type = TypeTransfer::TRANSFER;
 
@@ -134,6 +144,42 @@ class Transfer
     public function setCurrency(?Currency $currency): self
     {
         $this->currency = $currency;
+
+        return $this;
+    }
+
+    public function getReceivedAmount(): string
+    {
+        return $this->receivedAmount;
+    }
+
+    public function setReceivedAmount(string $receivedAmount): self
+    {
+        $this->receivedAmount = $receivedAmount;
+
+        return $this;
+    }
+
+    public function getReceivedCurrency(): ?Currency
+    {
+        return $this->receivedCurrency;
+    }
+
+    public function setReceivedCurrency(?Currency $receivedCurrency): self
+    {
+        $this->receivedCurrency = $receivedCurrency;
+
+        return $this;
+    }
+
+    public function getExchangeRate(): string
+    {
+        return $this->exchangeRate;
+    }
+
+    public function setExchangeRate(string $exchangeRate): self
+    {
+        $this->exchangeRate = $exchangeRate;
 
         return $this;
     }
