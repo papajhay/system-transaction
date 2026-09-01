@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace App\Entity;
 
+use App\Repository\ConversionRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity]
-#[ORM\Table(name: 'ledger_entries')]
-class LedgerEntry
+#[ORM\Entity(repositoryClass: ConversionRepository::class)]
+#[ORM\Table(name: 'conversions')]
+class Conversion
 {
     #[ORM\Id]
     #[ORM\GeneratedValue]

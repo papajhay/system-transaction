@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
-use App\Entity\LedgerEntry;
+use App\Entity\Conversion;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
@@ -14,18 +14,18 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 
-final class LedgerEntryCrudController extends AbstractCrudController
+final class ConversionCrudController extends AbstractCrudController
 {
     public static function getEntityFqcn(): string
     {
-        return LedgerEntry::class;
+        return Conversion::class;
     }
 
     public function configureCrud(Crud $crud): Crud
     {
         return $crud
-            ->setEntityLabelInSingular('Ledger entry')
-            ->setEntityLabelInPlural('Ledger entries')
+            ->setEntityLabelInSingular('Conversion')
+            ->setEntityLabelInPlural('Conversions')
             ->setSearchFields([
                 'fromCurrency.code',
                 'toCurrency.code',
@@ -53,19 +53,19 @@ final class LedgerEntryCrudController extends AbstractCrudController
             ->setNumDecimals(6)
             ->setStoredAsString(true)
             ->setRequired(true)
-            ->formatValue(fn ($value, LedgerEntry $ledgerEntry): string => $this->formatExchangeRate($value, $ledgerEntry));
+            ->formatValue(fn ($value, Conversion $conversion): string => $this->formatExchangeRate($value, $conversion));
 
         yield NumberField::new('sourceAmount', 'Source amount')
             ->setNumDecimals(2)
             ->setStoredAsString(true)
             ->setRequired(true)
-            ->formatValue(fn ($value, LedgerEntry $ledgerEntry): string => $this->formatAmount($value, $ledgerEntry->getFromCurrency()?->getSymbol()));
+            ->formatValue(fn ($value, Conversion $conversion): string => $this->formatAmount($value, $conversion->getFromCurrency()?->getSymbol()));
 
         yield NumberField::new('targetAmount', 'Target amount')
             ->setNumDecimals(2)
             ->setStoredAsString(true)
             ->setRequired(true)
-            ->formatValue(fn ($value, LedgerEntry $ledgerEntry): string => $this->formatAmount($value, $ledgerEntry->getToCurrency()?->getSymbol()));
+            ->formatValue(fn ($value, Conversion $conversion): string => $this->formatAmount($value, $conversion->getToCurrency()?->getSymbol()));
 
         yield DateTimeField::new('createdAt', 'Created at')
             ->hideOnForm()
@@ -81,11 +81,11 @@ final class LedgerEntryCrudController extends AbstractCrudController
         return $actions;
     }
 
-    public function createEntity(string $entityFqcn): LedgerEntry
+    public function createEntity(string $entityFqcn): Conversion
     {
         $now = new DateTimeImmutable();
 
-        return (new LedgerEntry())
+        return (new Conversion())
             ->setExchangeRate('0.000000')
             ->setSourceAmount('0.00')
             ->setTargetAmount('0.00')
@@ -105,11 +105,11 @@ final class LedgerEntryCrudController extends AbstractCrudController
         $entityManager->flush();
     }
 
-    private function formatExchangeRate($value, LedgerEntry $ledgerEntry): string
+    private function formatExchangeRate($value, Conversion $conversion): string
     {
-        $decimals = $ledgerEntry->getFromCurrency()?->getCode() === 'MGA' ? 6 : 2;
+        $decimals = $conversion->getFromCurrency()?->getCode() === 'MGA' ? 6 : 2;
 
-        return $this->formatAmount($value, $ledgerEntry->getToCurrency()?->getSymbol(), $decimals);
+        return $this->formatAmount($value, $conversion->getToCurrency()?->getSymbol(), $decimals);
     }
 
     private function formatAmount($value, ?string $symbol, int $decimals = 2): string

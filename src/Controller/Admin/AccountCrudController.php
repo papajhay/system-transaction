@@ -57,9 +57,6 @@ class AccountCrudController extends AbstractCrudController
             ])
             ->setRequired(true);
 
-        yield TextField::new('systemName', 'System name')
-            ->setRequired(false);
-
         yield AssociationField::new('currency', 'Currency')
             ->setRequired(true);
 
