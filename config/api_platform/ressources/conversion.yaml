@@ -1,5 +1,5 @@
 resources:
-    App\Entity\LedgerEntry:
+    App\Entity\Conversion:
         operations:
             ApiPlatform\Metadata\Get: {}
             ApiPlatform\Metadata\GetCollection: {}
@@ -9,7 +9,7 @@ resources:
             ApiPlatform\Metadata\Delete: {}
 
 properties:
-    App\Entity\LedgerEntry:
+    App\Entity\Conversion:
         id:
             readable: true
             writable: false

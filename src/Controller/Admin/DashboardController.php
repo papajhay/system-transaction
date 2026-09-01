@@ -8,10 +8,9 @@ use App\Entity\Account;
 use App\Entity\Currency;
 use App\Entity\ExchangeRate;
 use App\Entity\Fee;
-use App\Entity\LedgerEntry;
+use App\Entity\Conversion;
 use App\Entity\Operation;
 use App\Entity\Transfer;
-use App\Controller\Admin\AccountCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
@@ -64,9 +63,9 @@ class DashboardController extends AbstractDashboardController
         );
 
         yield MenuItem::linkToCrud(
-            'Ledger entries',
+            'Conversions',
             'fa fa-clipboard',
-            LedgerEntry::class
+            Conversion::class
         );
 
         yield MenuItem::linkToCrud(
