@@ -33,7 +33,7 @@ final class TransferTest extends TransactionTestCase
     {
         $receiver = $this->account('ACC-654-321'); $token = $this->initMono($receiver, 50, 'Wallet transfer');
         $this->execute(
-            '/api/transactions/execute-transfer',
+            '/api/transactions/execute-init-mono-transfer',
             ['token' => $token]); 
             self::assertResponseStatusCodeSame(201);
         $body = $this->jsonResponse(); 
@@ -106,7 +106,7 @@ final class TransferTest extends TransactionTestCase
     {
         $this->client->setServerParameter('HTTP_AUTHORIZATION', ''); 
         $this->client->jsonRequest(
-            'POST', '/api/transactions/init-transfer', 
+            'POST', '/api/transactions/init-mono-transfer', 
             ['from_account_number' => $this->account->getAccountNumber(), 
             'to_account_number' => 'ACC-654-321', 'amount' => 50, 
             'description' => 'Wallet transfer']
@@ -120,10 +120,10 @@ final class TransferTest extends TransactionTestCase
         $receiver = $this->account('ACC-654-321');
         $token = $this->initMono($receiver, 50, 'Wallet transfer'); 
         $this->execute(
-            '/api/transactions/execute-transfer', 
+            '/api/transactions/execute-init-mono-transfer', 
             ['token' => $token]); 
             self::assertResponseStatusCodeSame(201); 
-            $this->execute('/api/transactions/execute-transfer', ['token' => $token]); 
+            $this->execute('/api/transactions/execute-init-mono-transfer', ['token' => $token]); 
             self::assertResponseStatusCodeSame(400);
     }
 
@@ -132,7 +132,7 @@ final class TransferTest extends TransactionTestCase
     {
         foreach ([0, -10.00] as $amount) {
              $this->client->jsonRequest(
-                'POST', '/api/transactions/init-transfer', 
+                'POST', '/api/transactions/init-mono-transfer', 
                 ['from_account_number' => $this->account->getAccountNumber(), 
                 'to_account_number' => 'ACC-654-321', 
                 'amount' => $amount, 'description' => 'Invalid transfer']); 
@@ -145,7 +145,7 @@ final class TransferTest extends TransactionTestCase
     public function senderAccountMustExist(): void
     {
         $this->client->jsonRequest(
-            'POST', '/api/transactions/init-transfer', 
+            'POST', '/api/transactions/init-mono-transfer', 
             ['from_account_number' => 'NON-EXISTENT-FROM', 
             'to_account_number' => 'ACC-654-321', 
             'amount' => 10, 'description' => 'Transfer']
@@ -157,7 +157,7 @@ final class TransferTest extends TransactionTestCase
     public function receiverAccountMustExist(): void
     {
         $this->client->jsonRequest(
-            'POST', '/api/transactions/init-transfer', 
+            'POST', '/api/transactions/init-mono-transfer', 
             ['from_account_number' => $this->account->getAccountNumber(), 
             'to_account_number' => 'NON-EXISTENT-TO', 
             'amount' => 10, 
@@ -172,7 +172,7 @@ final class TransferTest extends TransactionTestCase
     {
         $receiver = $this->account('ACC-999-000');
         $this->client->jsonRequest(
-            'POST', '/api/transactions/init-transfer',
+            'POST', '/api/transactions/init-mono-transfer',
             ['from_account_number' => $this->account->getAccountNumber(),
             'to_account_number' => $receiver->getAccountNumber(),
             'amount' => 100000, 'description' => 'Large transfer']);
@@ -184,7 +184,7 @@ final class TransferTest extends TransactionTestCase
     public function sameAccountTransferChargesFee(): void
     {
         $token = $this->initMono($this->account, 10, 'Self transfer');
-                 $this->execute('/api/transactions/execute-transfer', ['token' => $token]);
+                 $this->execute('/api/transactions/execute-init-mono-transfer', ['token' => $token]);
                  self::assertResponseStatusCodeSame(201);
                  self::assertSame('completed', $this->jsonResponse()['data']['status']);
         $this->entityManager->clear();
@@ -198,16 +198,40 @@ final class TransferTest extends TransactionTestCase
     public function crossCurrencyTransferUsesRateAndSystemAccounts(): void
     {
         $eur = (new Currency())->setCode('EUR')->setName('Euro')->setSymbol('€');
-        $receiver = (new Account())->setAccountNumber('EUR-654-321')->setBalance('0.00')->setCurrency($eur)
-            ->setStatus(StatusAccount::ACTIVE)->setType(TypeAccount::USER)->setCreatedAt(new DateTimeImmutable())->setUpdatedAt(new DateTimeImmutable());
-        $eurSystem = (new Account())->setAccountNumber('EUR-SYSTEM')->setBalance('0.00')->setCurrency($eur)
-            ->setStatus(StatusAccount::ACTIVE)->setType(TypeAccount::SYSTEM)->setSystemName('fees')->setCreatedAt(new DateTimeImmutable())->setUpdatedAt(new DateTimeImmutable());
-        $rate = (new ExchangeRate())->setBaseCurrency($this->currency)->setTargetCurrency($eur)->setRate('0.93')
-            ->setCreatedAt(new DateTimeImmutable())->setUpdatedAt(new DateTimeImmutable());
-        $this->entityManager->persist($eur); $this->entityManager->persist($receiver); $this->entityManager->persist($eurSystem); $this->entityManager->persist($rate); $this->entityManager->flush();
+        $receiver = (
+            new Account())
+               ->setAccountNumber('EUR-654-321')
+               ->setBalance('0.00')
+               ->setCurrency($eur)
+               ->setStatus(StatusAccount::ACTIVE)
+               ->setType(TypeAccount::USER)
+               ->setCreatedAt(new DateTimeImmutable())
+               ->setUpdatedAt(new DateTimeImmutable());
+        $eurSystem = (
+            new Account())
+                ->setAccountNumber('EUR-SYSTEM')
+                ->setBalance('0.00')
+                ->setCurrency($eur)
+                ->setStatus(StatusAccount::ACTIVE)
+                ->setType(TypeAccount::SYSTEM)
+                ->setSystemName('fees')
+                ->setCreatedAt(new DateTimeImmutable())
+                ->setUpdatedAt(new DateTimeImmutable());
+        $rate = (
+            new ExchangeRate())
+                ->setBaseCurrency($this->currency)
+                ->setTargetCurrency($eur)
+                ->setRate('0.93')
+                ->setCreatedAt(new DateTimeImmutable())
+                ->setUpdatedAt(new DateTimeImmutable());
+        $this->entityManager->persist($eur);
+        $this->entityManager->persist($receiver); 
+        $this->entityManager->persist($eurSystem); 
+        $this->entityManager->persist($rate);
+        $this->entityManager->flush();
 
         $token = $this->initMono($receiver, 50, 'FX payment');
-        $this->execute('/api/transactions/execute-transfer', ['token' => $token]);
+        $this->execute('/api/transactions/execute-init-mono-transfer', ['token' => $token]);
         self::assertResponseStatusCodeSame(201);
 
         $this->entityManager->clear();
@@ -224,8 +248,13 @@ final class TransferTest extends TransactionTestCase
     #[Test]
     public function failedMultiTransferRollsBackEarlierTransfers(): void
     {
-        $one = $this->account('ROLLBACK-1'); $two = $this->account('ROLLBACK-2');
-        $this->client->jsonRequest('POST', '/api/transactions/init-multi-transfer', ['transfers' => [$this->item($one, 30, 'one'), $this->item($two, 20, 'two')]]);
+        $one = $this->account('ROLLBACK-1');
+        $two = $this->account('ROLLBACK-2');
+        $this->client->jsonRequest(
+            'POST', 
+            '/api/transactions/init-multi-transfer', 
+            ['transfers' => [$this->item($one, 30, 'one'), $this->item($two, 20, 'two')]]
+        );
         self::assertResponseStatusCodeSame(201);
         $tokens = array_column($this->jsonResponse()['data'], 'token');
         $second = $this->entityManager->getRepository(Transfer::class)->findOneBy(['token' => $tokens[1]]);
@@ -262,7 +291,7 @@ final class TransferTest extends TransactionTestCase
 
     private function initMono(Account $to, float $amount, string $description): string 
     {
-         $this->client->jsonRequest('POST', '/api/transactions/init-transfer',
+         $this->client->jsonRequest('POST', '/api/transactions/init-mono-transfer',
          $this->item($to, $amount, $description)); 
          self::assertResponseStatusCodeSame(201); 
          return $this->jsonResponse()['data']['token'];
