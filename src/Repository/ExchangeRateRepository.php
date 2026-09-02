@@ -15,13 +15,14 @@ final class ExchangeRateRepository extends ServiceEntityRepository
         parent::__construct($registry, ExchangeRate::class);
     }
 
-    public function getExchangeRateFromAndToCurrency(float $fromCurrencyId, float $toCurrencyId): ?ExchangeRate
+    public function getExchangeRateFromAndToCurrency(int $fromCurrencyId, int $toCurrencyId): ?ExchangeRate
     {
+        
         return $this->createQueryBuilder('exchangeRate')
             ->andWhere('IDENTITY(exchangeRate.baseCurrency) = :baseCurrencyId')
             ->andWhere('IDENTITY(exchangeRate.targetCurrency) = :targetCurrencyId')
-            ->setParameter('baseCurrencyId', $toCurrencyId)
-            ->setParameter('targetCurrencyId', $fromCurrencyId)
+            ->setParameter('baseCurrencyId', $fromCurrencyId)
+            ->setParameter('targetCurrencyId', $toCurrencyId)
             ->orderBy('exchangeRate.createdAt', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
