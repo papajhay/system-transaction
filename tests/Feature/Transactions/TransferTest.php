@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Feature\Transactions;
 
-use App\Entity\Account;
-use App\Entity\Transfer;
+use App\Entity\{Account, Conversion, Currency, ExchangeRate, Transfer};
 use App\Enum\StatusAccount;
 use App\Enum\StatusTransfer;
 use App\Enum\TypeAccount;
@@ -193,6 +192,50 @@ final class TransferTest extends TransactionTestCase
         $system = $this->entityManager->find(Account::class, $this->systemAccount->getId());
         self::assertSame('149.00', number_format((float) $account?->getBalance(), 2, '.', '')); 
         self::assertSame('1.15', number_format((float) $system?->getBalance(), 2, '.', ''));
+    }
+
+    #[Test]
+    public function crossCurrencyTransferUsesRateAndSystemAccounts(): void
+    {
+        $eur = (new Currency())->setCode('EUR')->setName('Euro')->setSymbol('€');
+        $receiver = (new Account())->setAccountNumber('EUR-654-321')->setBalance('0.00')->setCurrency($eur)
+            ->setStatus(StatusAccount::ACTIVE)->setType(TypeAccount::USER)->setCreatedAt(new DateTimeImmutable())->setUpdatedAt(new DateTimeImmutable());
+        $eurSystem = (new Account())->setAccountNumber('EUR-SYSTEM')->setBalance('0.00')->setCurrency($eur)
+            ->setStatus(StatusAccount::ACTIVE)->setType(TypeAccount::SYSTEM)->setSystemName('fees')->setCreatedAt(new DateTimeImmutable())->setUpdatedAt(new DateTimeImmutable());
+        $rate = (new ExchangeRate())->setBaseCurrency($this->currency)->setTargetCurrency($eur)->setRate('0.93')
+            ->setCreatedAt(new DateTimeImmutable())->setUpdatedAt(new DateTimeImmutable());
+        $this->entityManager->persist($eur); $this->entityManager->persist($receiver); $this->entityManager->persist($eurSystem); $this->entityManager->persist($rate); $this->entityManager->flush();
+
+        $token = $this->initMono($receiver, 50, 'FX payment');
+        $this->execute('/api/transactions/execute-transfer', ['token' => $token]);
+        self::assertResponseStatusCodeSame(201);
+
+        $this->entityManager->clear();
+        $sender = $this->entityManager->find(Account::class, $this->account->getId());
+        $receiver = $this->entityManager->getRepository(Account::class)->findOneBy(['accountNumber' => 'EUR-654-321']);
+        $eurSystem = $this->entityManager->getRepository(Account::class)->findOneBy(['accountNumber' => 'EUR-SYSTEM']);
+        $conversion = $this->entityManager->getRepository(Conversion::class)->findOneBy([]);
+        self::assertSame('100.00', number_format((float) $sender?->getBalance(), 2, '.', ''));
+        self::assertSame('46.50', number_format((float) $receiver?->getBalance(), 2, '.', ''));
+        self::assertSame('3.50', number_format((float) $eurSystem?->getBalance(), 2, '.', ''));
+        self::assertSame('0.930000', number_format((float) $conversion?->getExchangeRate(), 6, '.', ''));
+    }
+
+    #[Test]
+    public function failedMultiTransferRollsBackEarlierTransfers(): void
+    {
+        $one = $this->account('ROLLBACK-1'); $two = $this->account('ROLLBACK-2');
+        $this->client->jsonRequest('POST', '/api/transactions/init-multi-transfer', ['transfers' => [$this->item($one, 30, 'one'), $this->item($two, 20, 'two')]]);
+        self::assertResponseStatusCodeSame(201);
+        $tokens = array_column($this->jsonResponse()['data'], 'token');
+        $second = $this->entityManager->getRepository(Transfer::class)->findOneBy(['token' => $tokens[1]]);
+        $second?->setExpiresAt(new DateTimeImmutable('-1 minute')); $this->entityManager->flush();
+
+        $this->execute('/api/transactions/execute-multi-transfer', ['tokens' => $tokens]);
+        self::assertResponseStatusCodeSame(400);
+        $this->entityManager->clear();
+        self::assertSame(StatusTransfer::PENDING, $this->entityManager->getRepository(Transfer::class)->findOneBy(['token' => $tokens[0]])?->getStatus());
+        self::assertSame('150.00', number_format((float) $this->entityManager->find(Account::class, $this->account->getId())?->getBalance(), 2, '.', ''));
     }
 
     private function account(string $number): Account {

@@ -8,6 +8,9 @@ doctrine:
 
         profiling_collect_backtrace: '%kernel.debug%'
         use_savepoints: true
+        mapping_types:
+            account_status: string
+            account_type: string
     orm:
         auto_generate_proxy_classes: true
         enable_lazy_ghost_objects: true
