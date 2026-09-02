@@ -46,7 +46,7 @@ resources:
                 security: "is_granted('ROLE_USER')"
             init_transfer:
                 class: ApiPlatform\Metadata\Post
-                uriTemplate: /transactions/init-transfer
+                uriTemplate: /transactions/init-mono-transfer
                 input: App\Dto\InitTransferInput
                 output: App\Dto\TransactionResponse
                 processor: App\State\TransferProcessor
@@ -54,7 +54,7 @@ resources:
                 security: "is_granted('ROLE_USER')"
             execute_transfer:
                 class: ApiPlatform\Metadata\Post
-                uriTemplate: /transactions/execute-transfer
+                uriTemplate: /transactions/execute-mono-transfer
                 input: App\Dto\ExecuteTransferInput
                 output: App\Dto\TransactionResponse
                 processor: App\State\TransferProcessor
