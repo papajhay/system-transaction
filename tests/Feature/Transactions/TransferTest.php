@@ -33,7 +33,7 @@ final class TransferTest extends TransactionTestCase
     {
         $receiver = $this->account('ACC-654-321'); $token = $this->initMono($receiver, 50, 'Wallet transfer');
         $this->execute(
-            '/api/transactions/execute-init-mono-transfer',
+            '/api/transactions/execute-mono-transfer',
             ['token' => $token]); 
             self::assertResponseStatusCodeSame(201);
         $body = $this->jsonResponse(); 
@@ -120,10 +120,10 @@ final class TransferTest extends TransactionTestCase
         $receiver = $this->account('ACC-654-321');
         $token = $this->initMono($receiver, 50, 'Wallet transfer'); 
         $this->execute(
-            '/api/transactions/execute-init-mono-transfer', 
+            '/api/transactions/execute-mono-transfer', 
             ['token' => $token]); 
             self::assertResponseStatusCodeSame(201); 
-            $this->execute('/api/transactions/execute-init-mono-transfer', ['token' => $token]); 
+            $this->execute('/api/transactions/execute-mono-transfer', ['token' => $token]); 
             self::assertResponseStatusCodeSame(400);
     }
 
@@ -184,7 +184,7 @@ final class TransferTest extends TransactionTestCase
     public function sameAccountTransferChargesFee(): void
     {
         $token = $this->initMono($this->account, 10, 'Self transfer');
-                 $this->execute('/api/transactions/execute-init-mono-transfer', ['token' => $token]);
+                 $this->execute('/api/transactions/execute-mono-transfer', ['token' => $token]);
                  self::assertResponseStatusCodeSame(201);
                  self::assertSame('completed', $this->jsonResponse()['data']['status']);
         $this->entityManager->clear();
@@ -231,7 +231,7 @@ final class TransferTest extends TransactionTestCase
         $this->entityManager->flush();
 
         $token = $this->initMono($receiver, 50, 'FX payment');
-        $this->execute('/api/transactions/execute-init-mono-transfer', ['token' => $token]);
+        $this->execute('/api/transactions/execute-mono-transfer', ['token' => $token]);
         self::assertResponseStatusCodeSame(201);
 
         $this->entityManager->clear();
