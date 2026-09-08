@@ -53,7 +53,8 @@ final class TransferProcessor implements ProcessorInterface
         $receiver=$this->account($to);
         $value=round((float)$amount,2,PHP_ROUND_HALF_UP);
         $fee=$this->fee($value);
-        if((float)$sender->getBalance()<$value+$fee)throw new BadRequestHttpException('Insufficient balance');
+        $debitAmount=$this->money($value+$fee);
+        if(bccomp(bcsub($sender->getBalance(),$debitAmount,2),'0.00',2)<0)throw new BadRequestHttpException('Insufficient balance');
         $rate=$this->rate($sender,$receiver);
         $now=new DateTimeImmutable();
         $t=(
@@ -155,7 +156,9 @@ final class TransferProcessor implements ProcessorInterface
         $amount=(float)$t->getAmount();
         $cross=$sender->getCurrency()?->getId()!==$receiver->getCurrency()?->getId();
         $fee=$cross?0.0:$this->fee($amount);
-        if((float)$sender->getBalance()<$amount+$fee)throw new BadRequestHttpException('Insufficient balance');
+        $debitAmount=$this->money($amount+$fee);
+        $balanceAfterDebit=bcsub($sender->getBalance(),$debitAmount,2);
+        if(bccomp($balanceAfterDebit,'0.00',2)<0)throw new BadRequestHttpException('Insufficient balance');
             $now=new DateTimeImmutable();
             if(!$cross){$system=$this->system($sender);
             $this->entityManager->lock($system,LockMode::PESSIMISTIC_WRITE);
@@ -198,7 +201,7 @@ final class TransferProcessor implements ProcessorInterface
     private function debit(Account $a,float $amount,Transfer $t,DateTimeImmutable $now):void
     {
         $before=$a->getBalance();
-        $a->setBalance($this->money((float)$before-$amount))
+        $a->setBalance(bcsub($before,$this->money($amount),2))
           ->setUpdatedAt($now);
         $this->operation($a,TypeOperation::DEBIT,$amount,$before,$a->getBalance(),$t,$now);
     }

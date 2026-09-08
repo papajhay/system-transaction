@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Feature\Transactions;
 
-use App\Entity\{Account, Conversion, Currency, ExchangeRate, Transfer};
+use App\Entity\{Account, Conversion, Currency, ExchangeRate, Operation, Transfer};
 use App\Enum\StatusAccount;
 use App\Enum\StatusTransfer;
 use App\Enum\TypeAccount;
@@ -178,6 +178,31 @@ final class TransferTest extends TransactionTestCase
             'amount' => 100000, 'description' => 'Large transfer']);
         self::assertResponseStatusCodeSame(400);
         self::assertNull($this->entityManager->getRepository(Transfer::class)->findOneBy(['senderAccount' => $this->account, 'amount' => '100000.000000']));
+    }
+
+    #[Test]
+    public function insufficientBalanceAtExecutionDoesNotModifyAccountsOrCreateOperations(): void
+    {
+        $receiver = $this->account('ACC-999-000');
+        $token = $this->initMono($receiver, 4, 'Balance check');
+
+        $senderBeforeExecution = $this->entityManager->getRepository(Account::class)->find($this->account->getId());
+        $senderBeforeExecution?->setBalance('3.00');
+        $this->entityManager->flush();
+
+        $this->execute('/api/transactions/execute-mono-transfer', ['token' => $token]);
+
+        self::assertResponseStatusCodeSame(400);
+        $this->entityManager->clear();
+
+        $sender = $this->entityManager->find(Account::class, $this->account->getId());
+        $receiver = $this->entityManager->find(Account::class, $receiver->getId());
+        $transfer = $this->entityManager->getRepository(Transfer::class)->findOneBy(['token' => $token]);
+
+        self::assertSame('3.00', number_format((float) $sender?->getBalance(), 2, '.', ''));
+        self::assertSame('0.00', number_format((float) $receiver?->getBalance(), 2, '.', ''));
+        self::assertSame(StatusTransfer::PENDING, $transfer?->getStatus());
+        self::assertSame([], $this->entityManager->getRepository(Operation::class)->findBy(['transfer' => $transfer]));
     }
 
     #[Test]
