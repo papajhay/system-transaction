@@ -21,7 +21,7 @@ properties:
             writable: true
         rate:
             readable: true
-            writable: true
+            writable: false
         createdAt:
             readable: true
             writable: false

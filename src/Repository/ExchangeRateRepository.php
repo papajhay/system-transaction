@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Repository;
 
+use App\Entity\Currency;
 use App\Entity\ExchangeRate;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
@@ -27,5 +28,13 @@ final class ExchangeRateRepository extends ServiceEntityRepository
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
+    }
+
+    public function findOneByCurrencyPair(Currency $baseCurrency, Currency $targetCurrency): ?ExchangeRate
+    {
+        return $this->findOneBy([
+            'baseCurrency' => $baseCurrency,
+            'targetCurrency' => $targetCurrency,
+        ]);
     }
 }

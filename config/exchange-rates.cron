@@ -1,0 +1,3 @@
+# Install with: crontab config/exchange-rates.cron
+# Adjust the project path and PHP binary for the deployment host.
+0 2 * * * cd /var/www/transaction/system-transaction && /usr/bin/php bin/console app:exchange-rates:update --env=prod >> var/log/exchange-rates.log 2>&1
