@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Tests\Feature\Transactions;
 
-use App\Entity\{Account, Conversion, Currency, ExchangeRate, Operation, Transfer};
+use App\Entity\{Account, Conversion, Currency, ExchangeRate, Fee, Operation, Transfer};
 use App\Enum\StatusAccount;
 use App\Enum\StatusTransfer;
 use App\Enum\TypeAccount;
+use App\Enum\TypeFee;
 use App\Enum\TypeTransfer;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\Test;
@@ -217,6 +218,80 @@ final class TransferTest extends TransactionTestCase
         $system = $this->entityManager->find(Account::class, $this->systemAccount->getId());
         self::assertSame('149.00', number_format((float) $account?->getBalance(), 2, '.', '')); 
         self::assertSame('1.15', number_format((float) $system?->getBalance(), 2, '.', ''));
+    }
+
+    #[Test]
+    public function fixedFeeTierIncludesVatAndAffectsBalances(): void
+    {
+        $this->account->setBalance('40000.00');
+        $this->entityManager->persist(
+            (new Fee())
+                ->setType(TypeFee::FEE_CHARGED_FIXED)
+                ->setName('10,000 - 30,000 Ar')
+                ->setAmount(500.0)
+        );
+        $this->entityManager->flush();
+
+        $receiver = $this->account('ACC-FIXED');
+        $token = $this->initMono($receiver, 20000, 'Fixed tier');
+        $this->execute('/api/transactions/execute-mono-transfer', ['token' => $token]);
+
+        self::assertResponseStatusCodeSame(201);
+        $this->entityManager->clear();
+        $sender = $this->entityManager->find(Account::class, $this->account->getId());
+        $system = $this->entityManager->find(Account::class, $this->systemAccount->getId());
+        $fee = $this->entityManager->getRepository(Fee::class)->findOneBy(['transfer' => $this->entityManager->getRepository(Transfer::class)->findOneBy(['token' => $token])]);
+
+        self::assertSame('19400.00', number_format((float) $sender?->getBalance(), 2, '.', ''));
+        self::assertSame('600.15', number_format((float) $system?->getBalance(), 2, '.', ''));
+        self::assertSame(TypeFee::FEE_CHARGED_FIXED, $fee?->getType());
+        self::assertSame('600.00', number_format((float) $fee?->getAmount(), 2, '.', ''));
+    }
+
+    #[Test]
+    public function rateFeeIsPercentageAndIncludesVat(): void
+    {
+        $this->account->setBalance('11000.00');
+        $this->entityManager->persist(
+            (new Fee())
+                ->setType(TypeFee::FEE_CHARGED_RATE)
+                ->setName('Percentage')
+                ->setRate(0.01)
+                ->setAmount(0.0)
+        );
+        $this->entityManager->flush();
+
+        $receiver = $this->account('ACC-RATE');
+        $token = $this->initMono($receiver, 10000, 'Rate fee');
+        $this->execute('/api/transactions/execute-mono-transfer', ['token' => $token]);
+
+        self::assertResponseStatusCodeSame(201);
+        $this->entityManager->clear();
+        $sender = $this->entityManager->find(Account::class, $this->account->getId());
+        self::assertSame('998.80', number_format((float) $sender?->getBalance(), 2, '.', ''));
+    }
+
+    #[Test]
+    public function freeFeeDoesNotAffectBalances(): void
+    {
+        $this->entityManager->persist(
+            (new Fee())
+                ->setType(TypeFee::FREE_CHARGED)
+                ->setName('No fee')
+                ->setAmount(0.0)
+        );
+        $this->entityManager->flush();
+
+        $receiver = $this->account('ACC-FREE');
+        $token = $this->initMono($receiver, 50, 'Free fee');
+        $this->execute('/api/transactions/execute-mono-transfer', ['token' => $token]);
+
+        self::assertResponseStatusCodeSame(201);
+        $this->entityManager->clear();
+        $sender = $this->entityManager->find(Account::class, $this->account->getId());
+        $system = $this->entityManager->find(Account::class, $this->systemAccount->getId());
+        self::assertSame('100.00', number_format((float) $sender?->getBalance(), 2, '.', ''));
+        self::assertSame('0.15', number_format((float) $system?->getBalance(), 2, '.', ''));
     }
 
     #[Test]

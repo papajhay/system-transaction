@@ -16,6 +16,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
@@ -43,8 +44,9 @@ final class FeeCrudController extends AbstractCrudController
             ->add(
                 ChoiceFilter::new('type', 'Type')
                     ->setChoices([
-                        'Fee charged' => TypeFee::FEE_CHARGED,
-                        'Free charged' => TypeFee::FREE_CHARGED,
+                    'Fixed fee' => TypeFee::FEE_CHARGED_FIXED,
+                    'Rate fee' => TypeFee::FEE_CHARGED_RATE,
+                    'Free charged' => TypeFee::FREE_CHARGED,
                     ])
             )
             ->add(EntityFilter::new('transfer', 'Transfer'))
@@ -56,18 +58,25 @@ final class FeeCrudController extends AbstractCrudController
     {
         yield AssociationField::new('transfer', 'Transfer')
             ->setFormTypeOption('choice_label', 'reference')
-            ->setRequired(true);
+            ->setRequired(false);
 
         yield ChoiceField::new('type', 'Type')
             ->setChoices([
-                'Fee charged' => TypeFee::FEE_CHARGED,
+                'Fixed fee' => TypeFee::FEE_CHARGED_FIXED,
+                'Rate fee' => TypeFee::FEE_CHARGED_RATE,
                 'Free charged' => TypeFee::FREE_CHARGED,
             ])
             ->setRequired(true);
 
+        yield TextField::new('name', 'Name')
+            ->setRequired(false);
+
+        yield NumberField::new('rate', 'Rate (%)')
+            ->setNumDecimals(4)
+            ->setRequired(false);
+
         yield NumberField::new('amount', 'Amount')
             ->setNumDecimals(2)
-            ->setStoredAsString(true)
             ->setRequired(true);
 
         yield DateTimeField::new('createdAt', 'Created at')
@@ -88,7 +97,7 @@ final class FeeCrudController extends AbstractCrudController
 
         return (new Fee())
             ->setType(TypeFee::FREE_CHARGED)
-            ->setAmount('0.00')
+            ->setAmount(0.0)
             ->setCreatedAt($now)
             ->setUpdatedAt($now);
     }

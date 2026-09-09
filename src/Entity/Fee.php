@@ -19,14 +19,20 @@ class Fee
     private ?int $id = null;
 
     #[ORM\ManyToOne(targetEntity: Transfer::class)]
-    #[ORM\JoinColumn(name: 'transfer_id', referencedColumnName: 'id', nullable: false, onDelete: 'CASCADE')]
+    #[ORM\JoinColumn(name: 'transfer_id', referencedColumnName: 'id', nullable: true, onDelete: 'CASCADE')]
     private ?Transfer $transfer = null;
 
     #[ORM\Column(type: Types::STRING, enumType: TypeFee::class, options: ['default' => 'free charged'])]
     private TypeFee $type = TypeFee::FREE_CHARGED;
 
-    #[ORM\Column(type: Types::DECIMAL, precision: 10, scale: 2, options: ['default' => '0.00'])]
-    private string $amount = '0.00';
+    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
+    private ?string $name = null;
+
+    #[ORM\Column(type: Types::FLOAT, nullable: true)]
+    private ?float $rate = null;
+
+    #[ORM\Column(type: Types::FLOAT, options: ['default' => 0])]
+    private float $amount = 0.0;
 
     #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE, nullable: true)]
     private ?DateTimeImmutable $createdAt = null;
@@ -63,12 +69,36 @@ class Fee
         return $this;
     }
 
-    public function getAmount(): string
+    public function getName(): ?string
+    {
+        return $this->name;
+    }
+
+    public function setName(?string $name): self
+    {
+        $this->name = $name;
+
+        return $this;
+    }
+
+    public function getRate(): ?float
+    {
+        return $this->rate;
+    }
+
+    public function setRate(?float $rate): self
+    {
+        $this->rate = $rate;
+
+        return $this;
+    }
+
+    public function getAmount(): float
     {
         return $this->amount;
     }
 
-    public function setAmount(string $amount): self
+    public function setAmount(float $amount): self
     {
         $this->amount = $amount;
 
