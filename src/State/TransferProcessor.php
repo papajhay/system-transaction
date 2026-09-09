@@ -52,7 +52,8 @@ final class TransferProcessor implements ProcessorInterface
         $sender=$this->account($from);
         $receiver=$this->account($to);
         $value=round((float)$amount,2,PHP_ROUND_HALF_UP);
-        $fee=$this->fee($value);
+        $cross = $sender->getCurrency()?->getId() !== $receiver->getCurrency()?->getId();
+        $fee = $cross ? 0.0 : $this->feeDetails($value)['amount'];
         $debitAmount=$this->money($value+$fee);
         if(bccomp(bcsub($sender->getBalance(),$debitAmount,2),'0.00',2)<0)throw new BadRequestHttpException('Insufficient balance');
         $rate=$this->rate($sender,$receiver);
@@ -155,7 +156,8 @@ final class TransferProcessor implements ProcessorInterface
         $this->entityManager->lock($sender,LockMode::PESSIMISTIC_WRITE);$this->entityManager->lock($receiver,LockMode::PESSIMISTIC_WRITE);
         $amount=(float)$t->getAmount();
         $cross=$sender->getCurrency()?->getId()!==$receiver->getCurrency()?->getId();
-        $fee=$cross?0.0:$this->fee($amount);
+        $feeDetails = $cross ? $this->freeFeeDetails() : $this->feeDetails($amount);
+        $fee = $feeDetails['amount'];
         $debitAmount=$this->money($amount+$fee);
         $balanceAfterDebit=bcsub($sender->getBalance(),$debitAmount,2);
         if(bccomp($balanceAfterDebit,'0.00',2)<0)throw new BadRequestHttpException('Insufficient balance');
@@ -166,8 +168,10 @@ final class TransferProcessor implements ProcessorInterface
             $this->credit($system,$fee,$t,$now);
             $this->entityManager->persist(
                 (new Fee())->setTransfer($t)
-                           ->setType(TypeFee::FEE_CHARGED)
-                           ->setAmount($this->money($fee))
+                           ->setType($feeDetails['type'])
+                           ->setName($feeDetails['name'])
+                           ->setRate($feeDetails['rate'])
+                           ->setAmount($fee)
                            ->setCreatedAt($now)
                            ->setUpdatedAt($now));
         }else{
@@ -250,9 +254,134 @@ final class TransferProcessor implements ProcessorInterface
         return $a;
     }
     
-    private function fee(float $amount):float
+    /** @return array{amount: float, type: TypeFee, name: ?string, rate: ?float} */
+    private function feeDetails(float $amount): array
     {
-        return round($amount*.1,2,PHP_ROUND_HALF_UP);
+        /** @var list<Fee> $configurations */
+        $configurations = $this->entityManager
+            ->getRepository(Fee::class)
+            ->findBy(['transfer' => null], ['id' => 'ASC']);
+
+        // Keep the fee that was already in effect when no fee configuration
+        // exists. This preserves existing installations while allowing the
+        // new fee configuration records to take precedence.
+        if ($configurations === []) {
+            return [
+                'amount' => round($amount * 0.1, 2, PHP_ROUND_HALF_UP),
+                'type' => TypeFee::FEE_CHARGED_FIXED,
+                'name' => 'legacy',
+                'rate' => null,
+            ];
+        }
+
+        foreach ($configurations as $configuration) {
+            if (
+                $configuration->getType() === TypeFee::FEE_CHARGED_FIXED
+                && $this->matchesTier($configuration->getName(), $amount)
+            ) {
+                return $this->withVat(
+                    $configuration->getAmount(),
+                    TypeFee::FEE_CHARGED_FIXED,
+                    $configuration,
+                );
+            }
+        }
+
+        foreach ($configurations as $configuration) {
+            if ($configuration->getType() === TypeFee::FEE_CHARGED_RATE) {
+                $rate = $configuration->getRate() ?? 0.01;
+
+                return $this->withVat(
+                    $amount * $rate / 100,
+                    TypeFee::FEE_CHARGED_RATE,
+                    $configuration,
+                    $rate,
+                );
+            }
+        }
+
+        foreach ($configurations as $configuration) {
+            if ($configuration->getType() === TypeFee::FREE_CHARGED) {
+                return $this->freeFeeDetails($configuration);
+            }
+        }
+
+        return $this->freeFeeDetails();
+    }
+
+    /** @return array{amount: float, type: TypeFee, name: ?string, rate: ?float} */
+    private function withVat(
+        float $amount,
+        TypeFee $type,
+        Fee $configuration,
+        ?float $rate = null,
+    ): array {
+        return [
+            'amount' => round($amount * 1.2, 2, PHP_ROUND_HALF_UP),
+            'type' => $type,
+            'name' => $configuration->getName(),
+            'rate' => $rate ?? $configuration->getRate(),
+        ];
+    }
+
+    /** @return array{amount: float, type: TypeFee, name: ?string, rate: ?float} */
+    private function freeFeeDetails(?Fee $configuration = null): array
+    {
+        return [
+            'amount' => 0.0,
+            'type' => TypeFee::FREE_CHARGED,
+            'name' => $configuration?->getName(),
+            'rate' => 0.0,
+        ];
+    }
+
+    private function matchesTier(?string $name, float $amount): bool
+    {
+        if ($name === null || trim($name) === '') {
+            return true;
+        }
+
+        preg_match_all('/\d[\d\s,.]*/', $name, $matches);
+        $bounds = array_values(array_filter(
+            array_map(
+                fn (string $value): ?float => $this->parseTierNumber($value),
+                $matches[0],
+            ),
+            static fn (?float $value): bool => $value !== null,
+        ));
+
+        return match (count($bounds)) {
+            0 => false,
+            1 => $amount >= $bounds[0],
+            default => $amount >= $bounds[0] && $amount <= $bounds[1],
+        };
+    }
+
+    private function parseTierNumber(string $value): ?float
+    {
+        $value = str_replace([' ', "\u{00A0}"], '', trim($value, " \t\n\r\0\x0B"));
+        if ($value === '') {
+            return null;
+        }
+
+        $commaPosition = strrpos($value, ',');
+        $dotPosition = strrpos($value, '.');
+
+        if ($commaPosition !== false && $dotPosition !== false) {
+            // The last separator is the decimal separator when both are present.
+            $decimalSeparator = $commaPosition > $dotPosition ? ',' : '.';
+            $thousandsSeparator = $decimalSeparator === ',' ? '.' : ',';
+            $value = str_replace($thousandsSeparator, '', $value);
+            $value = str_replace($decimalSeparator, '.', $value);
+        } elseif ($commaPosition !== false) {
+            $value = preg_match('/,\d{3}$/', $value) === 1
+                ? str_replace(',', '', $value)
+                : str_replace(',', '.', $value);
+        } elseif ($dotPosition !== false && preg_match('/\.\d{3}$/', $value) === 1) {
+            $value = str_replace('.', '', $value);
+        }
+
+        return is_numeric($value) ? (float) $value : null;
     }
     
     private function money(float $amount):string

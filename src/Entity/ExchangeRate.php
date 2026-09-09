@@ -11,14 +11,10 @@ use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 
 #[ORM\Entity(repositoryClass: ExchangeRateRepository::class)]
-#[ORM\Table(
-    name: 'exchange_rate',
-    uniqueConstraints: [
-        new ORM\UniqueConstraint(
-            name: 'UNIQ_EXCHANGE_RATE_CURRENCIES',
-            columns: ['base_currency_id', 'target_currency_id'],
-        ),
-    ],
+#[ORM\Table(name: 'exchange_rate')]
+#[ORM\UniqueConstraint(
+    name: 'UNIQ_EXCHANGE_RATE_CURRENCIES',
+    columns: ['base_currency_id', 'target_currency_id'],
 )]
 #[UniqueEntity(
     fields: ['baseCurrency', 'targetCurrency'],

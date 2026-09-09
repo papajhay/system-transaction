@@ -122,7 +122,7 @@ final class WithdrawalProcessor implements ProcessorInterface
             $fee = (new Fee())
                 ->setTransfer($transfer)
                 ->setType(TypeFee::FREE_CHARGED)
-                ->setAmount('0.00')
+                ->setAmount(0.0)
                 ->setCreatedAt($now)
                 ->setUpdatedAt($now);
 
