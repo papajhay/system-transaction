@@ -6,13 +6,19 @@ namespace App\Controller\Admin;
 
 use App\Entity\Conversion;
 use DateTimeImmutable;
+use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
+use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
+use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class ConversionCrudController extends AbstractCrudController
 {
@@ -78,7 +84,75 @@ final class ConversionCrudController extends AbstractCrudController
 
     public function configureActions(Actions $actions): Actions
     {
-        return $actions;
+        return $actions
+            ->add(
+                Crud::PAGE_INDEX,
+                Action::new('export', 'CSV Export', 'fa fa-file-csv')
+                    ->createAsGlobalAction()
+                    ->linkToCrudAction('export')
+            );
+    }
+
+    public function export(AdminContext $context): StreamedResponse
+    {
+        $search = $context->getSearch();
+        if (null === $search) {
+            throw new \LogicException('The CSV export can only be used from the conversion index page.');
+        }
+
+        $fields = new FieldCollection($this->configureFields(Crud::PAGE_INDEX));
+        $filters = $this->container->get(FilterFactory::class)->create(
+            $context->getCrud()->getFiltersConfig(),
+            $fields,
+            $context->getEntity(),
+        );
+        $queryBuilder = $this->createIndexQueryBuilder(
+            $search,
+            $context->getEntity(),
+            $fields,
+            $filters,
+        );
+
+        $response = new StreamedResponse(function () use ($queryBuilder): void {
+            $output = fopen('php://output', 'wb');
+            if (false === $output) {
+                throw new \RuntimeException('Unable to open the CSV output stream.');
+            }
+
+            fputcsv($output, [
+                'id',
+                'transfer',
+                'from_currency',
+                'to_currency',
+                'exchange_rate',
+                'source_amount',
+                'target_amount',
+                'created_at',
+                'updated_at',
+            ]);
+
+            /** @var Conversion $conversion */
+            foreach ($queryBuilder->getQuery()->toIterable() as $conversion) {
+                fputcsv($output, [
+                    $conversion->getId(),
+                    $conversion->getTransfer()?->getReference() ?? '',
+                    $conversion->getFromCurrency()?->getCode() ?? '',
+                    $conversion->getToCurrency()?->getCode() ?? '',
+                    $conversion->getExchangeRate(),
+                    $conversion->getSourceAmount(),
+                    $conversion->getTargetAmount(),
+                    $conversion->getCreatedAt()?->format(DateTimeInterface::ATOM) ?? '',
+                    $conversion->getUpdatedAt()?->format(DateTimeInterface::ATOM) ?? '',
+                ]);
+            }
+
+            fclose($output);
+        });
+
+        $response->headers->set('Content-Type', 'text/csv; charset=UTF-8');
+        $response->headers->set('Content-Disposition', 'attachment; filename="conversions.csv"');
+
+        return $response;
     }
 
     public function createEntity(string $entityFqcn): Conversion
