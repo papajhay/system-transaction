@@ -6,6 +6,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\Operation;
 use App\Enum\TypeOperation;
+use App\Service\DateRangeFilter;
 use DateTimeInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -20,7 +21,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
-use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\NumericFilter;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -60,7 +60,7 @@ final class OperationCrudController extends AbstractCrudController
             ->add(NumericFilter::new('amount', 'Amount'))
             ->add(NumericFilter::new('balanceBefore', 'Balance before'))
             ->add(NumericFilter::new('balanceAfter', 'Balance after'))
-            ->add(DateTimeFilter::new('createdAt', 'Created at'));
+            ->add(DateRangeFilter::new('createdAt', 'Created at'));
     }
 
     public function configureFields(string $pageName): iterable
