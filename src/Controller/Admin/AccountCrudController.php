@@ -7,6 +7,7 @@ namespace App\Controller\Admin;
 use App\Entity\Account;
 use App\Enum\StatusAccount;
 use App\Enum\TypeAccount;
+use App\Service\AccountNumberFilter;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -22,7 +23,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
-use EasyCorp\Bundle\EasyAdminBundle\Filter\TextFilter;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Uid\Uuid;
 
@@ -49,7 +49,26 @@ final class AccountCrudController extends AbstractCrudController
     public function configureFilters(Filters $filters): Filters
     {
         return $filters
-            ->add(TextFilter::new('accountNumber', 'Account number'));
+            ->add(
+                AccountNumberFilter::new('accountNumber', 'Account number')
+                    ->setChoices($this->getAccountNumberChoices())
+            );
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function getAccountNumberChoices(): array
+    {
+        $entityManager = $this->container->get('doctrine')->getManagerForClass(Account::class);
+        $accountNumbers = $entityManager->createQueryBuilder()
+            ->select('DISTINCT account.accountNumber')
+            ->from(Account::class, 'account')
+            ->orderBy('account.accountNumber', 'ASC')
+            ->getQuery()
+            ->getSingleColumnResult();
+
+        return array_combine($accountNumbers, $accountNumbers) ?: [];
     }
 
     public function configureFields(string $pageName): iterable
