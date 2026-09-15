@@ -85,7 +85,6 @@ final class TransferCrudController extends AbstractCrudController
             ->setFormat('MMM d, yyyy HH:mm:ss')
             ->hideOnForm();
 
-    
 
         yield ChoiceField::new('status', 'Status')
             ->setChoices([
