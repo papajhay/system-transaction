@@ -14,10 +14,14 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
+use EasyCorp\Bundle\EasyAdminBundle\Form\Type\ComparisonType;
+use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Option\EA;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class TransferCrudController extends AbstractCrudController
@@ -82,10 +86,34 @@ final class TransferCrudController extends AbstractCrudController
             ->disable(Action::EDIT, Action::DELETE, Action::BATCH_DELETE)
             ->add(
                 Crud::PAGE_INDEX,
+                Action::new('view_operation', 'View operation', 'fa fa-eye')
+                    ->linkToCrudAction('viewOperation')
+            )
+            ->add(
+                Crud::PAGE_INDEX,
                 Action::new('export', 'CSV Export', 'fa fa-file-csv')
                     ->createAsGlobalAction()
                     ->linkToCrudAction('export')
             );
+    }
+
+    public function viewOperation(AdminContext $context): RedirectResponse
+    {
+        /** @var Transfer $transfer */
+        $transfer = $context->getEntity()->getInstance();
+
+        $url = $this->container->get(AdminUrlGenerator::class)
+            ->setController(OperationCrudController::class)
+            ->setAction(Crud::PAGE_INDEX)
+            ->set(EA::FILTERS, [
+                'transfer' => [
+                    'comparison' => ComparisonType::EQ,
+                    'value' => $transfer->getId(),
+                ],
+            ])
+            ->generateUrl();
+
+        return $this->redirect($url);
     }
 
     public function export(AdminContext $context): StreamedResponse
