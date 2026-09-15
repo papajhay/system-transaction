@@ -6,6 +6,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\Transfer;
 use App\Enum\StatusTransfer;
+use App\Service\DateRangeFilter;
 use DateTimeInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -19,11 +20,11 @@ use EasyCorp\Bundle\EasyAdminBundle\Form\Type\ComparisonType;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Option\EA;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
-use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -45,7 +46,7 @@ final class TransferCrudController extends AbstractCrudController
     public function configureFilters(Filters $filters): Filters
     {
         return $filters
-            ->add(DateTimeFilter::new('createdAt', 'Created At'))
+            ->add(DateRangeFilter::new('createdAt', 'Created At'))
             ->add(
                 ChoiceFilter::new('status', 'Status')
                     ->setChoices([
@@ -79,6 +80,10 @@ final class TransferCrudController extends AbstractCrudController
                 
                 return $formatted . ' ' . $symbol;
         });
+
+        yield DateTimeField::new('createdAt', 'Created At')
+            ->setFormat('MMM d, yyyy HH:mm:ss')
+            ->hideOnForm();
 
     
 
