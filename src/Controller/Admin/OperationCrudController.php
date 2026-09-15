@@ -22,7 +22,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
-use EasyCorp\Bundle\EasyAdminBundle\Filter\NumericFilter;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class OperationCrudController extends AbstractCrudController
@@ -57,9 +56,6 @@ final class OperationCrudController extends AbstractCrudController
             )
             ->add(EntityFilter::new('account', 'Account'))
             ->add(EntityFilter::new('transfer', 'Transfer'))
-            ->add(NumericFilter::new('amount', 'Amount'))
-            ->add(NumericFilter::new('balanceBefore', 'Balance before'))
-            ->add(NumericFilter::new('balanceAfter', 'Balance after'))
             ->add(DateRangeFilter::new('createdAt', 'Created at'));
     }
 

@@ -8,6 +8,7 @@ use App\Entity\Fee;
 use App\Enum\TypeFee;
 use DateTimeImmutable;
 use DateTimeInterface;
+use App\Service\DateRangeFilter;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -23,9 +24,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
-use EasyCorp\Bundle\EasyAdminBundle\Filter\DateTimeFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
-use EasyCorp\Bundle\EasyAdminBundle\Filter\NumericFilter;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class FeeCrudController extends AbstractCrudController
@@ -56,8 +55,7 @@ final class FeeCrudController extends AbstractCrudController
                     ])
             )
             ->add(EntityFilter::new('transfer', 'Transfer'))
-            ->add(NumericFilter::new('amount', 'Amount'))
-            ->add(DateTimeFilter::new('createdAt', 'Created at'));
+            ->add(DateRangeFilter::new('createdAt', 'Created at'));
     }
 
     public function configureFields(string $pageName): iterable
