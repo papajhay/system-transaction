@@ -22,6 +22,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Uid\Uuid;
@@ -52,7 +53,16 @@ final class AccountCrudController extends AbstractCrudController
             ->add(
                 AccountNumberFilter::new('accountNumber', 'Account number')
                     ->setChoices($this->getAccountNumberChoices())
-            );
+            )
+            ->add(
+                ChoiceFilter::new('status', 'Status')
+                    ->setChoices([
+                        'Active' => StatusAccount::ACTIVE,
+                        'Suspended' => StatusAccount::SUSPENDED,
+                        'Closed' => StatusAccount::CLOSED,
+            ])
+        );
+         
     }
 
     /**
