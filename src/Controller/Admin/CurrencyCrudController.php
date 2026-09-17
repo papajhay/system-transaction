@@ -5,11 +5,11 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Entity\Currency;
+use App\Controller\Admin\BaseCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
-use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
@@ -18,7 +18,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Validator\Constraints\NotBlank;
 use Symfony\Component\Validator\Constraints\Length;
 
-final class CurrencyCrudController extends AbstractCrudController
+final class CurrencyCrudController extends BaseCrudController
 {
     public static function getEntityFqcn(): string
     {
@@ -54,13 +54,14 @@ final class CurrencyCrudController extends AbstractCrudController
 
     public function configureActions(Actions $actions): Actions
     {
-        return $actions
-            ->add(
+        return $this->configureCommonActions(
+            $actions->add(
                 Crud::PAGE_INDEX,
                 Action::new('export', 'CSV Export', 'fa fa-file-csv')
                     ->createAsGlobalAction()
                     ->linkToCrudAction('export')
-            );
+            )
+        );
     }
 
     public function export(AdminContext $context): StreamedResponse

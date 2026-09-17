@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Entity\Operation;
+use App\Controller\Admin\BaseCrudController;
 use App\Enum\TypeOperation;
 use App\Service\DateRangeFilter;
 use DateTimeInterface;
@@ -13,7 +14,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
-use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
@@ -24,7 +24,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
-final class OperationCrudController extends AbstractCrudController
+final class OperationCrudController extends BaseCrudController
 {
     public static function getEntityFqcn(): string
     {
@@ -101,14 +101,16 @@ final class OperationCrudController extends AbstractCrudController
 
     public function configureActions(Actions $actions): Actions
     {
-        return $actions
-            ->disable(Action::NEW, Action::EDIT)
-            ->add(
-                Crud::PAGE_INDEX,
-                Action::new('export', 'CSV Export', 'fa fa-file-csv')
-                    ->createAsGlobalAction()
-                    ->linkToCrudAction('export')
-            );
+       return $this->configureCommonActions(
+            $actions
+                ->disable(Action::NEW, Action::EDIT)
+                ->add(
+                    Crud::PAGE_INDEX,
+                    Action::new('export', 'CSV Export', 'fa fa-file-csv')
+                        ->createAsGlobalAction()
+                        ->linkToCrudAction('export')
+                )
+        );
     }
 
     public function export(AdminContext $context): StreamedResponse
