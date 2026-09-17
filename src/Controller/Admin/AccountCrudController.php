@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Entity\Account;
+use App\Controller\Admin\BaseCrudController;
 use App\Enum\StatusAccount;
 use App\Enum\TypeAccount;
 use App\Service\AccountNumberFilter;
@@ -16,7 +17,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
-use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractCrudController;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
@@ -27,7 +27,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Uid\Uuid;
 
-final class AccountCrudController extends AbstractCrudController
+final class AccountCrudController extends BaseCrudController
 {
     public static function getEntityFqcn(): string
     {
@@ -115,13 +115,14 @@ final class AccountCrudController extends AbstractCrudController
 
     public function configureActions(Actions $actions): Actions
     {
-        return $actions
-            ->add(
+        return $this->configureCommonActions(
+            $actions->add(
                 Crud::PAGE_INDEX,
                 Action::new('export', 'CSV Export', 'fa fa-file-csv')
                     ->createAsGlobalAction()
                     ->linkToCrudAction('export')
-            );
+            )
+        );
     }
 
     public function export(AdminContext $context): StreamedResponse
