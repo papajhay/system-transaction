@@ -22,6 +22,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\NumericFilter;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class OperationCrudController extends BaseCrudController
@@ -53,6 +54,10 @@ final class OperationCrudController extends BaseCrudController
                         'Debit' => TypeOperation::DEBIT,
                         'Credit' => TypeOperation::CREDIT,
                     ])
+            )
+            ->add(
+                NumericFilter::new('amount', 'Amount')
+                    ->setFormTypeOption('value_type_options.input', 'string')
             )
             ->add(EntityFilter::new('account', 'Account'))
             ->add(EntityFilter::new('transfer', 'Transfer'))
