@@ -11,12 +11,16 @@ use DateTimeImmutable;
 use DateTimeInterface;
 use App\Service\DateRangeFilter;
 use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\QueryBuilder;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
@@ -25,6 +29,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\NumericFilter;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class FeeCrudController extends BaseCrudController
@@ -55,7 +60,20 @@ final class FeeCrudController extends BaseCrudController
                     ])
             )
             ->add(EntityFilter::new('transfer', 'Transfer'))
+            ->add(NumericFilter::new('amount', 'Amount'))
+            ->add(NumericFilter::new('rate', 'Rate'))
             ->add(DateRangeFilter::new('createdAt', 'Created at'));
+    }
+
+    public function createIndexQueryBuilder(
+        SearchDto $searchDto,
+        EntityDto $entityDto,
+        FieldCollection $fields,
+        FilterCollection $filters,
+    ): QueryBuilder {
+        return parent::createIndexQueryBuilder($searchDto, $entityDto, $fields, $filters)
+            ->andWhere('entity.type != :freeCharged')
+            ->setParameter('freeCharged', TypeFee::FREE_CHARGED->value);
     }
 
     public function configureFields(string $pageName): iterable
