@@ -6,6 +6,8 @@ namespace App\Controller\Admin;
 
 use App\Entity\Conversion;
 use App\Controller\Admin\BaseCrudController;
+use App\Enum\StatusTransfer;
+use App\Service\DateRangeFilter;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -13,11 +15,14 @@ use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 final class ConversionCrudController extends BaseCrudController
@@ -40,6 +45,14 @@ final class ConversionCrudController extends BaseCrudController
             ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
+    public function configureFilters(Filters $filters): Filters
+    {
+        return $filters
+            ->add(EntityFilter::new('toCurrency', 'Target'))
+            ->add(EntityFilter::new('fromCurrency', 'Source'))
+            ->add(DateRangeFilter::new('createdAt', 'Created at'));
+    }
+
     public function configureFields(string $pageName): iterable
     {
         yield AssociationField::new('fromCurrency', 'Source')
@@ -54,6 +67,15 @@ final class ConversionCrudController extends BaseCrudController
             ->setFormTypeOption('choice_label', 'reference')
             ->setRequired(true)
             ->hideOnIndex();
+
+        yield ChoiceField::new('transfer.status', 'Status')
+            ->setChoices([
+                'Pending' => StatusTransfer::PENDING,
+                'Completed' => StatusTransfer::COMPLETED,
+                'Failed' => StatusTransfer::FAILED,
+            ])
+            ->renderAsBadges(StatusTransfer::statusBadgeStyles())
+            ->hideOnForm();
 
         yield NumberField::new('exchangeRate', 'Exchange rate')
             ->setNumDecimals(6)
@@ -74,11 +96,6 @@ final class ConversionCrudController extends BaseCrudController
             ->formatValue(fn ($value, Conversion $conversion): string => $this->formatAmount($value, $conversion->getToCurrency()?->getSymbol()));
 
         yield DateTimeField::new('createdAt', 'Created at')
-            ->hideOnForm()
-            ->hideOnIndex();
-
-        yield DateTimeField::new('updatedAt', 'Updated at')
-            ->hideOnForm()
             ->hideOnIndex();
     }
 
