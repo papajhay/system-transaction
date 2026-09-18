@@ -19,6 +19,8 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
+use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
+use Symfony\Component\HttpFoundation\RedirectResponse;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
@@ -111,13 +113,39 @@ final class FeeCrudController extends BaseCrudController
     public function configureActions(Actions $actions): Actions
     {
         return $this->configureCommonActions(
-            $actions->add(
-                Crud::PAGE_INDEX,
-                Action::new('export', 'CSV Export', 'fa fa-file-csv')
-                    ->createAsGlobalAction()
-                    ->linkToCrudAction('export')
-            )
+            $actions
+                ->add(
+                    Crud::PAGE_INDEX,
+                    Action::new('export', 'CSV Export', 'fa fa-file-csv')
+                        ->createAsGlobalAction()
+                        ->linkToCrudAction('export')
+                )
+                ->add(
+                    Crud::PAGE_INDEX,
+                    Action::new('view_transfer', 'View Transfer', 'fa fa-eye')
+                        ->linkToCrudAction('viewTransfer')
+                        ->displayIf(static fn (Fee $fee): bool => null !== $fee->getTransfer())
+                )
         );
+    }
+    
+    public function viewTransfer(AdminContext $context): RedirectResponse
+    {
+        /** @var Fee $fee */
+        $fee = $context->getEntity()->getInstance();
+        $transfer = $fee->getTransfer();
+
+        if (null === $transfer || null === $transfer->getId()) {
+            throw new \LogicException('This fee is not associated with a transfer.');
+        }
+
+        $url = $this->container->get(AdminUrlGenerator::class)
+          ->setController(TransferCrudController::class)
+          ->setAction(Crud::PAGE_DETAIL)
+          ->setEntityId($transfer->getId())
+          ->generateUrl();
+
+        return $this->redirect($url);
     }
 
     public function export(AdminContext $context): StreamedResponse
