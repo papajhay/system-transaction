@@ -25,6 +25,8 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextareaField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\NumericFilter;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -46,6 +48,11 @@ final class TransferCrudController extends AbstractCrudController
     public function configureFilters(Filters $filters): Filters
     {
         return $filters
+            ->add(
+                NumericFilter::new('amount', 'Amount')
+                    ->setFormTypeOption('value_type_options.input', 'string')
+            )
+            ->add(EntityFilter::new('currency', 'Currency'))
             ->add(DateRangeFilter::new('createdAt', 'Created At'))
             ->add(
                 ChoiceFilter::new('status', 'Status')
