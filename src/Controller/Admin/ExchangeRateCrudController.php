@@ -7,6 +7,7 @@ namespace App\Controller\Admin;
 use App\Entity\ExchangeRate;
 use App\Repository\ExchangeRateRepository;
 use App\Controller\Admin\BaseCrudController;
+use App\Service\DateRangeFilter;
 use DateTimeImmutable;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
@@ -14,12 +15,14 @@ use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
+use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Validator\Constraints\Positive;
 
@@ -44,6 +47,14 @@ final class ExchangeRateCrudController extends BaseCrudController
             ]);
     }
 
+    public function configureFilters(Filters $filters): Filters
+    {
+        return $filters
+            ->add(EntityFilter::new('baseCurrency', 'Base currency'))
+            ->add(EntityFilter::new('targetCurrency', 'Target currency'))
+            ->add(DateRangeFilter::new('createdAt', 'Created at'));
+    }
+
     public function configureFields(string $pageName): iterable
     {
         yield IdField::new('id', 'ID')
@@ -61,10 +72,6 @@ final class ExchangeRateCrudController extends BaseCrudController
             ->setNumDecimals(10)
             ->setStoredAsString(true)
             ->setFormTypeOption('constraints', [new Positive()]);
-
-        yield DateTimeField::new('updatedAt', 'Last updated')
-            ->setFormat('MMM d, yyyy HH:mm:ss')
-            ->hideOnForm();
 
         yield DateTimeField::new('createdAt', 'Created at')
             ->setFormat('MMM d, yyyy HH:mm:ss')
@@ -190,14 +197,13 @@ final class ExchangeRateCrudController extends BaseCrudController
         $inverse = $repository->findOneByCurrencyPair($targetCurrency, $baseCurrency);
 
         if (null === $inverse) {
-            $now = new DateTimeImmutable();
             $entityManager->persist(
                 (new ExchangeRate())
                     ->setBaseCurrency($targetCurrency)
                     ->setTargetCurrency($baseCurrency)
                     ->setRate(number_format(1 / $rate, 10, '.', ''))
-                    ->setCreatedAt($now)
-                    ->setUpdatedAt($now)
+                    ->setCreatedAt($entityInstance->getCreatedAt())
+                    ->setUpdatedAt(new DateTimeImmutable())
             );
         }
 
