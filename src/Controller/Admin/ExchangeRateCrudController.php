@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Entity\ExchangeRate;
+use App\Repository\ExchangeRateRepository;
 use App\Controller\Admin\BaseCrudController;
 use DateTimeImmutable;
 use DateTimeInterface;
@@ -20,6 +21,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\Validator\Constraints\Positive;
 
 final class ExchangeRateCrudController extends BaseCrudController
 {
@@ -56,9 +58,9 @@ final class ExchangeRateCrudController extends BaseCrudController
             ->setRequired(true);
 
         yield NumberField::new('rate', 'Rate')
-            ->setNumDecimals(4)
+            ->setNumDecimals(10)
             ->setStoredAsString(true)
-            ->setFormTypeOption('disabled', true);
+            ->setFormTypeOption('constraints', [new Positive()]);
 
         yield DateTimeField::new('updatedAt', 'Last updated')
             ->setFormat('MMM d, yyyy HH:mm:ss')
@@ -73,7 +75,12 @@ final class ExchangeRateCrudController extends BaseCrudController
     {
         return $this->configureCommonActions(
             $actions
-                ->disable(Action::NEW, Action::EDIT)
+                ->disable(Action::EDIT)
+                ->update(
+                    Crud::PAGE_INDEX,
+                    Action::NEW,
+                    static fn (Action $action) => $action->setLabel('Create')
+                )
                 ->add(
                     Crud::PAGE_INDEX,
                     Action::new('export', 'CSV Export', 'fa fa-file-csv')
@@ -153,7 +160,47 @@ final class ExchangeRateCrudController extends BaseCrudController
         EntityManagerInterface $entityManager,
         $entityInstance,
     ): void {
+        if (!$entityInstance instanceof ExchangeRate) {
+            throw new \InvalidArgumentException('Expected an exchange rate entity.');
+        }
+
+        $baseCurrency = $entityInstance->getBaseCurrency();
+        $targetCurrency = $entityInstance->getTargetCurrency();
+        $rate = (float) $entityInstance->getRate();
+
+        if (null === $baseCurrency || null === $targetCurrency) {
+            throw new \InvalidArgumentException('Both currencies are required.');
+        }
+
+        if ($baseCurrency === $targetCurrency
+            || (null !== $baseCurrency->getId()
+                && $baseCurrency->getId() === $targetCurrency->getId())
+        ) {
+            throw new \InvalidArgumentException('The base and target currencies must be different.');
+        }
+
+        if ($rate <= 0) {
+            throw new \InvalidArgumentException('The exchange rate must be greater than zero.');
+        }
+
         $entityManager->persist($entityInstance);
+
+        /** @var ExchangeRateRepository $repository */
+        $repository = $entityManager->getRepository(ExchangeRate::class);
+        $inverse = $repository->findOneByCurrencyPair($targetCurrency, $baseCurrency);
+
+        if (null === $inverse) {
+            $now = new DateTimeImmutable();
+            $entityManager->persist(
+                (new ExchangeRate())
+                    ->setBaseCurrency($targetCurrency)
+                    ->setTargetCurrency($baseCurrency)
+                    ->setRate(number_format(1 / $rate, 10, '.', ''))
+                    ->setCreatedAt($now)
+                    ->setUpdatedAt($now)
+            );
+        }
+
         $entityManager->flush();
     }
 

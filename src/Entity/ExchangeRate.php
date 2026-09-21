@@ -9,6 +9,8 @@ use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
+use Symfony\Component\Validator\Constraints as Assert;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: ExchangeRateRepository::class)]
 #[ORM\Table(name: 'exchange_rate')]
@@ -36,6 +38,7 @@ class ExchangeRate
     private ?Currency $targetCurrency = null;
 
     #[ORM\Column(type: Types::DECIMAL, precision: 20, scale: 10)]
+    #[Assert\Positive(message: 'The exchange rate must be greater than zero.')]
     private string $rate;
 
     #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
@@ -71,6 +74,22 @@ class ExchangeRate
         $this->targetCurrency = $targetCurrency;
 
         return $this;
+    }
+
+    #[Assert\Callback]
+    public function validateCurrencies(ExecutionContextInterface $context): void
+    {
+        if (null !== $this->baseCurrency
+            && null !== $this->targetCurrency
+            && ($this->baseCurrency === $this->targetCurrency
+                || (null !== $this->baseCurrency->getId()
+                    && $this->baseCurrency->getId() === $this->targetCurrency->getId()))
+        ) {
+            $context
+                ->buildViolation('The base and target currencies must be different.')
+                ->atPath('targetCurrency')
+                ->addViolation();
+        }
     }
 
     public function getRate(): string
