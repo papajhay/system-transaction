@@ -6,6 +6,8 @@ namespace App\Repository;
 
 use App\Entity\Currency;
 use App\Entity\ExchangeRate;
+use DateTimeImmutable;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\Bundle\DoctrineBundle\Repository\ServiceEntityRepository;
 use Doctrine\Persistence\ManagerRegistry;
 
@@ -36,5 +38,21 @@ final class ExchangeRateRepository extends ServiceEntityRepository
             'baseCurrency' => $baseCurrency,
             'targetCurrency' => $targetCurrency,
         ]);
+    }
+
+    public function hasRateForDate(DateTimeImmutable $date): bool
+    {
+        $start = $date->setTime(0, 0, 0);
+        $end = $start->modify('+1 day');
+
+        return (bool) $this->createQueryBuilder('exchangeRate')
+            ->select('1')
+            ->andWhere('exchangeRate.createdAt >= :start')
+            ->andWhere('exchangeRate.createdAt < :end')
+            ->setParameter('start', $start, Types::DATETIME_IMMUTABLE)
+            ->setParameter('end', $end, Types::DATETIME_IMMUTABLE)
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
     }
 }

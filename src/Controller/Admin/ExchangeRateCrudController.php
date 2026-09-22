@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Controller\Admin;
 
 use App\Entity\ExchangeRate;
-use App\Repository\ExchangeRateRepository;
 use App\Controller\Admin\BaseCrudController;
 use App\Service\DateRangeFilter;
 use DateTimeImmutable;
@@ -192,20 +191,14 @@ final class ExchangeRateCrudController extends BaseCrudController
 
         $entityManager->persist($entityInstance);
 
-        /** @var ExchangeRateRepository $repository */
-        $repository = $entityManager->getRepository(ExchangeRate::class);
-        $inverse = $repository->findOneByCurrencyPair($targetCurrency, $baseCurrency);
-
-        if (null === $inverse) {
-            $entityManager->persist(
-                (new ExchangeRate())
-                    ->setBaseCurrency($targetCurrency)
-                    ->setTargetCurrency($baseCurrency)
-                    ->setRate(number_format(1 / $rate, 10, '.', ''))
-                    ->setCreatedAt($entityInstance->getCreatedAt())
-                    ->setUpdatedAt(new DateTimeImmutable())
-            );
-        }
+        $entityManager->persist(
+            (new ExchangeRate())
+                ->setBaseCurrency($targetCurrency)
+                ->setTargetCurrency($baseCurrency)
+                ->setRate(number_format(1 / $rate, 10, '.', ''))
+                ->setCreatedAt($entityInstance->getCreatedAt())
+                ->setUpdatedAt($entityInstance->getCreatedAt())
+        );
 
         $entityManager->flush();
     }
