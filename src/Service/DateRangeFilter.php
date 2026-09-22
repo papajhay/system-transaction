@@ -49,6 +49,9 @@ final class DateRangeFilter implements FilterInterface
         $parameter2Name = $filterDataDto->getParameter2Name();
         $dateFrom = $this->createDate($filterDataDto->getValue(), false);
         $dateTo = $this->createDate($filterDataDto->getValue2(), true);
+        $dateType = $property === 'rateDate'
+            ? Types::DATE_IMMUTABLE
+            : Types::DATETIME_IMMUTABLE;
 
         if (null === $dateFrom) {
             $queryBuilder->andWhere(sprintf('%s.%s %s', $alias, $property, $comparison));
@@ -70,8 +73,8 @@ final class DateRangeFilter implements FilterInterface
 
             $queryBuilder
                 ->andWhere(sprintf('%s.%s BETWEEN :%s AND :%s', $alias, $property, $parameterName, $parameter2Name))
-                ->setParameter($parameterName, $dateFrom, Types::DATETIME_IMMUTABLE)
-                ->setParameter($parameter2Name, $dateTo, Types::DATETIME_IMMUTABLE);
+                ->setParameter($parameterName, $dateFrom, $dateType)
+                ->setParameter($parameter2Name, $dateTo, $dateType);
 
             return;
         }
@@ -79,8 +82,8 @@ final class DateRangeFilter implements FilterInterface
         if (ComparisonType::EQ === $comparison) {
             $queryBuilder
                 ->andWhere(sprintf('%s.%s BETWEEN :%s AND :%s', $alias, $property, $parameterName, $parameter2Name))
-                ->setParameter($parameterName, $dateFrom, Types::DATETIME_IMMUTABLE)
-                ->setParameter($parameter2Name, $dateFrom->setTime(23, 59, 59), Types::DATETIME_IMMUTABLE);
+                ->setParameter($parameterName, $dateFrom, $dateType)
+                ->setParameter($parameter2Name, $dateFrom->setTime(23, 59, 59), $dateType);
 
             return;
         }
@@ -88,8 +91,8 @@ final class DateRangeFilter implements FilterInterface
         if (ComparisonType::NEQ === $comparison) {
             $queryBuilder
                 ->andWhere(sprintf('%s.%s NOT BETWEEN :%s AND :%s', $alias, $property, $parameterName, $parameter2Name))
-                ->setParameter($parameterName, $dateFrom, Types::DATETIME_IMMUTABLE)
-                ->setParameter($parameter2Name, $dateFrom->setTime(23, 59, 59), Types::DATETIME_IMMUTABLE);
+                ->setParameter($parameterName, $dateFrom, $dateType)
+                ->setParameter($parameter2Name, $dateFrom->setTime(23, 59, 59), $dateType);
 
             return;
         }
@@ -104,7 +107,7 @@ final class DateRangeFilter implements FilterInterface
 
         $queryBuilder
             ->andWhere(sprintf('%s.%s %s :%s', $alias, $property, $comparison, $parameterName))
-            ->setParameter($parameterName, $date, Types::DATETIME_IMMUTABLE);
+            ->setParameter($parameterName, $date, $dateType);
     }
 
     private function createDate(mixed $value, bool $endOfDay): ?DateTimeImmutable

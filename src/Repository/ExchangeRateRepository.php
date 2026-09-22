@@ -26,7 +26,8 @@ final class ExchangeRateRepository extends ServiceEntityRepository
             ->andWhere('IDENTITY(exchangeRate.targetCurrency) = :targetCurrencyId')
             ->setParameter('baseCurrencyId', $fromCurrencyId)
             ->setParameter('targetCurrencyId', $toCurrencyId)
-            ->orderBy('exchangeRate.createdAt', 'DESC')
+            ->orderBy('exchangeRate.rateDate', 'DESC')
+            ->addOrderBy('exchangeRate.createdAt', 'DESC')
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();
@@ -40,17 +41,34 @@ final class ExchangeRateRepository extends ServiceEntityRepository
         ]);
     }
 
+    public function findOneByCurrencyPairAndRateDate(
+        Currency $baseCurrency,
+        Currency $targetCurrency,
+        DateTimeImmutable $date,
+    ): ?ExchangeRate {
+        $start = $date->setTime(0, 0, 0);
+
+        return $this->createQueryBuilder('exchangeRate')
+            ->andWhere('exchangeRate.baseCurrency = :baseCurrency')
+            ->andWhere('exchangeRate.targetCurrency = :targetCurrency')
+            ->andWhere('exchangeRate.rateDate = :rateDate')
+            ->setParameter('baseCurrency', $baseCurrency)
+            ->setParameter('targetCurrency', $targetCurrency)
+            ->setParameter('rateDate', $start, Types::DATE_IMMUTABLE)
+            ->orderBy('exchangeRate.createdAt', 'DESC')
+            ->setMaxResults(1)
+            ->getQuery()
+            ->getOneOrNullResult();
+    }
+
     public function hasRateForDate(DateTimeImmutable $date): bool
     {
         $start = $date->setTime(0, 0, 0);
-        $end = $start->modify('+1 day');
 
         return (bool) $this->createQueryBuilder('exchangeRate')
             ->select('1')
-            ->andWhere('exchangeRate.createdAt >= :start')
-            ->andWhere('exchangeRate.createdAt < :end')
-            ->setParameter('start', $start, Types::DATETIME_IMMUTABLE)
-            ->setParameter('end', $end, Types::DATETIME_IMMUTABLE)
+            ->andWhere('exchangeRate.rateDate = :rateDate')
+            ->setParameter('rateDate', $start, Types::DATE_IMMUTABLE)
             ->setMaxResults(1)
             ->getQuery()
             ->getOneOrNullResult();

@@ -51,47 +51,58 @@ final class ExchangeRateHistoryTest extends KernelTestCase
 
         self::assertGreaterThanOrEqual($before, $exchangeRate->getCreatedAt());
         self::assertLessThanOrEqual($after, $exchangeRate->getCreatedAt());
+        self::assertSame($exchangeRate->getCreatedAt()->format('Y-m-d'), $exchangeRate->getRateDate()->format('Y-m-d'));
 
-        $createdAtField = null;
+        $rateDateField = null;
         foreach ($controller->configureFields(Crud::PAGE_NEW) as $field) {
-            if ($field->getAsDto()->getProperty() === 'createdAt') {
-                $createdAtField = $field;
+            if ($field->getAsDto()->getProperty() === 'rateDate') {
+                $rateDateField = $field;
                 break;
             }
         }
 
-        self::assertNotNull($createdAtField);
-        self::assertFalse($createdAtField->getAsDto()->getDisplayedOn()->has(Crud::PAGE_NEW));
+        self::assertNotNull($rateDateField);
+        self::assertFalse($rateDateField->getAsDto()->getDisplayedOn()->has(Crud::PAGE_NEW));
     }
 
     public function testScheduledRunsCreateNewRatesWithTheCurrentDate(): void
     {
         [$baseCurrency, $targetCurrency] = $this->createCurrencies();
-        $provider = $this->createProvider();
-        $command = new UpdateExchangeRatesCommand($this->entityManager, $provider);
+        $provider = $this->createProvider('0.93');
+        $command = new UpdateExchangeRatesCommand(
+            $this->entityManager,
+            $provider,
+            $this->entityManager->getRepository(ExchangeRate::class),
+        );
         $tester = new CommandTester($command);
 
         self::assertSame(0, $tester->execute([]));
         $firstRunRates = $this->entityManager->getRepository(ExchangeRate::class)->findAll();
         self::assertCount(2, $firstRunRates);
+        $firstRateId = $firstRunRates[0]->getId();
+        $firstCreatedAt = $firstRunRates[0]->getCreatedAt();
 
-        foreach ($firstRunRates as $exchangeRate) {
-            $exchangeRate->setCreatedAt(new \DateTimeImmutable('2026-09-01 12:00:00'));
-        }
-        $this->entityManager->flush();
-
-        self::assertSame(0, $tester->execute([]));
+        $secondCommand = new UpdateExchangeRatesCommand(
+            $this->entityManager,
+            $this->createProvider('0.94'),
+            $this->entityManager->getRepository(ExchangeRate::class),
+        );
+        self::assertSame(0, (new CommandTester($secondCommand))->execute([]));
         $this->entityManager->clear();
         $rates = $this->entityManager->getRepository(ExchangeRate::class)->findAll();
 
-        self::assertCount(4, $rates);
-        self::assertCount(2, array_filter(
-            $rates,
-            static fn (ExchangeRate $rate): bool => $rate->getCreatedAt()->format('Y-m-d') === (new \DateTimeImmutable())->format('Y-m-d'),
-        ));
+        self::assertCount(2, $rates);
+        $updatedRate = $this->entityManager->getRepository(ExchangeRate::class)->find($firstRateId);
+        self::assertNotNull($updatedRate);
+        self::assertSame('0.94', $updatedRate->getRate());
+        self::assertSame((new \DateTimeImmutable())->format('Y-m-d'), $updatedRate->getRateDate()->format('Y-m-d'));
+        self::assertSame(
+            $firstCreatedAt->format('Y-m-d H:i:s'),
+            $updatedRate->getCreatedAt()->format('Y-m-d H:i:s'),
+        );
     }
 
-    public function testCreatedAtDateFilterReturnsHistoricalRates(): void
+    public function testRateDateFilterReturnsHistoricalRates(): void
     {
         [$baseCurrency, $targetCurrency] = $this->createCurrencies();
         foreach ([
@@ -104,6 +115,7 @@ final class ExchangeRateHistoryTest extends KernelTestCase
                     ->setBaseCurrency($data['base'])
                     ->setTargetCurrency($data['target'])
                     ->setRate($data['rate'])
+                    ->setRateDate(new \DateTimeImmutable($data['date']))
                     ->setCreatedAt(new \DateTimeImmutable($data['date']))
                     ->setUpdatedAt(new \DateTimeImmutable($data['date'])),
             );
@@ -111,7 +123,7 @@ final class ExchangeRateHistoryTest extends KernelTestCase
         $this->entityManager->flush();
 
         $filterDto = new FilterDto();
-        $filterDto->setProperty('createdAt');
+        $filterDto->setProperty('rateDate');
         $filterData = FilterDataDto::new(0, $filterDto, 'exchangeRate', [
             'comparison' => ComparisonType::EQ,
             'value' => new \DateTimeImmutable('2026-09-01'),
@@ -124,7 +136,7 @@ final class ExchangeRateHistoryTest extends KernelTestCase
             ExchangeRate::class,
             $this->entityManager->getClassMetadata(ExchangeRate::class),
         );
-        DateRangeFilter::new('createdAt')->apply($queryBuilder, $filterData, null, $entityDto);
+        DateRangeFilter::new('rateDate')->apply($queryBuilder, $filterData, null, $entityDto);
 
         $filteredRates = $queryBuilder->getQuery()->getResult();
         self::assertCount(2, $filteredRates);
@@ -149,13 +161,13 @@ final class ExchangeRateHistoryTest extends KernelTestCase
         return [$base, $target];
     }
 
-    private function createProvider(): ExchangeRateProvider
+    private function createProvider(string $rate): ExchangeRateProvider
     {
         $response = $this->createMock(ResponseInterface::class);
         $response->method('getStatusCode')->willReturn(200);
         $response->method('toArray')->willReturn([
             'result' => 'success',
-            'conversion_rates' => ['USD' => '0.93', 'EUR' => '1.07'],
+            'conversion_rates' => ['USD' => $rate, 'EUR' => $rate],
         ]);
         $httpClient = $this->createMock(HttpClientInterface::class);
         $httpClient->method('request')->willReturn($response);

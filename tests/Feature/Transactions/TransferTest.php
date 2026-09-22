@@ -322,6 +322,7 @@ final class TransferTest extends TransactionTestCase
                 ->setBaseCurrency($this->currency)
                 ->setTargetCurrency($eur)
                 ->setRate('0.93')
+                ->setRateDate(new DateTimeImmutable())
                 ->setCreatedAt(new DateTimeImmutable())
                 ->setUpdatedAt(new DateTimeImmutable());
         $this->entityManager->persist($eur);

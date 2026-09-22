@@ -6,6 +6,7 @@ namespace App\Service;
 
 use App\Entity\Currency;
 use App\Entity\ExchangeRate;
+use App\Repository\ExchangeRateRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -22,6 +23,7 @@ final class UpdateExchangeRatesCommand extends Command
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly ExchangeRateProvider $exchangeRateProvider,
+        private readonly ExchangeRateRepository $exchangeRateRepository,
     ) {
         parent::__construct();
     }
@@ -33,6 +35,7 @@ final class UpdateExchangeRatesCommand extends Command
             ->getRepository(Currency::class)
             ->findAll();
         $now = new DateTimeImmutable();
+        $today = new DateTimeImmutable('today');
         $updatedCount = 0;
 
         foreach ($currencies as $baseCurrency) {
@@ -53,14 +56,24 @@ final class UpdateExchangeRatesCommand extends Command
                     continue;
                 }
 
-                $this->entityManager->persist(
-                    (new ExchangeRate())
-                    ->setBaseCurrency($baseCurrency)
-                    ->setTargetCurrency($targetCurrency)
-                    ->setRate($rate)
-                    ->setCreatedAt($now)
-                    ->setUpdatedAt($now)
+                $exchangeRate = $this->exchangeRateRepository->findOneByCurrencyPairAndRateDate(
+                    $baseCurrency,
+                    $targetCurrency,
+                    $today,
                 );
+
+                if ($exchangeRate === null) {
+                    $exchangeRate = (new ExchangeRate())
+                        ->setBaseCurrency($baseCurrency)
+                        ->setTargetCurrency($targetCurrency)
+                        ->setRateDate($today)
+                        ->setCreatedAt($now);
+                    $this->entityManager->persist($exchangeRate);
+                }
+
+                $exchangeRate
+                    ->setRate($rate)
+                    ->setUpdatedAt($now);
                 ++$updatedCount;
             }
         }

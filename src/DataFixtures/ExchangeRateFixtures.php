@@ -65,6 +65,7 @@ final class ExchangeRateFixtures extends Fixture implements DependentFixtureInte
                 ->setBaseCurrency($baseCurrency)
                 ->setTargetCurrency($targetCurrency)
                 ->setRate($data['rate'])
+                ->setRateDate($exchangeRate->getId() === null ? $now : $exchangeRate->getRateDate())
                 ->setCreatedAt($exchangeRate->getId() === null ? $now : $exchangeRate->getCreatedAt())
                 ->setUpdatedAt($now);
 

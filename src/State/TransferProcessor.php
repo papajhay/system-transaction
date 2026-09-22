@@ -6,7 +6,7 @@ use ApiPlatform\State\ProcessorInterface;
 use App\Dto\{ExecuteMultiTransferInput,ExecuteTransferInput,InitMultiTransferInput,InitTransferInput,TransactionResponse};
 use App\Entity\{Account,Conversion,Fee,Operation as LedgerOperation,Transfer};
 use App\Enum\{StatusTransfer,TypeAccount,TypeFee,TypeOperation,TypeTransfer};
-use App\Repository\ExchangeRateRepository;
+use App\Service\OnDemandExchangeRateService;
 use DateTimeImmutable;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
@@ -17,7 +17,7 @@ final class TransferProcessor implements ProcessorInterface
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly ExchangeRateRepository $exchangeRates
+        private readonly OnDemandExchangeRateService $exchangeRates
     ) {}
  
     public function process(mixed $data,Operation $operation,array $uriVariables=[],array $context=[]): TransactionResponse 
@@ -411,10 +411,7 @@ final class TransferProcessor implements ProcessorInterface
             return 1.0;
         }
 
-        $exchangeRate = $this->exchangeRates->getExchangeRateFromAndToCurrency(
-            $senderCurrency->getId(),
-            $receiverCurrency->getId()
-        );
+        $exchangeRate = $this->exchangeRates->getRate($senderCurrency, $receiverCurrency);
 
         if ($exchangeRate) {
             $rate = (float) $exchangeRate->getRate();
@@ -424,10 +421,7 @@ final class TransferProcessor implements ProcessorInterface
         }
 
         // Use the inverse rate when only the opposite direction is configured.
-        $reverseExchangeRate = $this->exchangeRates->getExchangeRateFromAndToCurrency(
-            $receiverCurrency->getId(),
-            $senderCurrency->getId()
-        );
+        $reverseExchangeRate = $this->exchangeRates->getRate($receiverCurrency, $senderCurrency);
 
         if ($reverseExchangeRate && (float) $reverseExchangeRate->getRate() > 0) {
             return 1 / (float) $reverseExchangeRate->getRate();

@@ -25,6 +25,9 @@ properties:
         createdAt:
             readable: true
             writable: false
+        rateDate:
+            readable: true
+            writable: false
         updatedAt:
             readable: true
             writable: false
