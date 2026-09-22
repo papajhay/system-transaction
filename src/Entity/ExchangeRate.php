@@ -13,6 +13,10 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: ExchangeRateRepository::class)]
 #[ORM\Table(name: 'exchange_rate')]
+#[ORM\UniqueConstraint(
+    name: 'UNIQ_EXCHANGE_RATE_PAIR_RATE_DATE',
+    columns: ['base_currency_id', 'target_currency_id', 'rate_date'],
+)]
 class ExchangeRate
 {
     #[ORM\Id]
@@ -31,6 +35,9 @@ class ExchangeRate
     #[ORM\Column(type: Types::DECIMAL, precision: 20, scale: 10)]
     #[Assert\Positive(message: 'The exchange rate must be greater than zero.')]
     private string $rate;
+
+    #[ORM\Column(name: 'rate_date', type: Types::DATE_IMMUTABLE)]
+    private DateTimeImmutable $rateDate;
 
     #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
     private DateTimeImmutable $createdAt;
@@ -91,6 +98,18 @@ class ExchangeRate
     public function setRate(string $rate): self
     {
         $this->rate = $rate;
+
+        return $this;
+    }
+
+    public function getRateDate(): DateTimeImmutable
+    {
+        return $this->rateDate;
+    }
+
+    public function setRateDate(DateTimeImmutable $rateDate): self
+    {
+        $this->rateDate = $rateDate->setTime(0, 0, 0);
 
         return $this;
     }

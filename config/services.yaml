@@ -9,7 +9,6 @@
 parameters:
     exchange_rates_api_url: '%env(EXCHANGE_RATES_API_URL)%'
     exchange_rates_api_key: '%env(EXCHANGE_RATES_API_KEY)%'
-    app_environment: '%kernel.environment%'
 
 services:
     # default configuration for services in *this* file
@@ -26,10 +25,6 @@ services:
         arguments:
             $apiUrl: '%exchange_rates_api_url%'
             $apiKey: '%exchange_rates_api_key%'
-
-    App\Service\ExchangeRateRequestSubscriber:
-        arguments:
-            $environment: '%app_environment%'
 
     transfer.search_filter:
         parent: 'api_platform.doctrine.orm.search_filter'

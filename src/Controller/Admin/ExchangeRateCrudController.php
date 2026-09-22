@@ -18,6 +18,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\DateField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\IdField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
@@ -51,7 +52,7 @@ final class ExchangeRateCrudController extends BaseCrudController
         return $filters
             ->add(EntityFilter::new('baseCurrency', 'Base currency'))
             ->add(EntityFilter::new('targetCurrency', 'Target currency'))
-            ->add(DateRangeFilter::new('createdAt', 'Created at'));
+            ->add(DateRangeFilter::new('rateDate', 'Rate date'));
     }
 
     public function configureFields(string $pageName): iterable
@@ -74,6 +75,10 @@ final class ExchangeRateCrudController extends BaseCrudController
 
         yield DateTimeField::new('createdAt', 'Created at')
             ->setFormat('MMM d, yyyy HH:mm:ss')
+            ->hideOnForm();
+
+        yield DateField::new('rateDate', 'Rate date')
+            ->setFormat('dd/MM/yyyy')
             ->hideOnForm();
     }
 
@@ -129,6 +134,7 @@ final class ExchangeRateCrudController extends BaseCrudController
                 'rate',
                 'updated_at',
                 'created_at',
+                'rate_date',
             ]);
 
             /** @var ExchangeRate $exchangeRate */
@@ -140,6 +146,7 @@ final class ExchangeRateCrudController extends BaseCrudController
                     $exchangeRate->getRate(),
                     $exchangeRate->getUpdatedAt()->format(DateTimeInterface::ATOM),
                     $exchangeRate->getCreatedAt()->format(DateTimeInterface::ATOM),
+                    $exchangeRate->getRateDate()->format('Y-m-d'),
                 ]);
             }
 
@@ -158,6 +165,7 @@ final class ExchangeRateCrudController extends BaseCrudController
 
         return (new ExchangeRate())
             ->setRate('0.0000')
+            ->setRateDate($now)
             ->setCreatedAt($now)
             ->setUpdatedAt($now);
     }
@@ -196,6 +204,7 @@ final class ExchangeRateCrudController extends BaseCrudController
                 ->setBaseCurrency($targetCurrency)
                 ->setTargetCurrency($baseCurrency)
                 ->setRate(number_format(1 / $rate, 10, '.', ''))
+                ->setRateDate($entityInstance->getRateDate())
                 ->setCreatedAt($entityInstance->getCreatedAt())
                 ->setUpdatedAt($entityInstance->getCreatedAt())
         );
