@@ -112,21 +112,20 @@ final class FeeCrudController extends BaseCrudController
 
     public function configureActions(Actions $actions): Actions
     {
-        return $this->configureCommonActions(
-            $actions
-                ->add(
-                    Crud::PAGE_INDEX,
-                    Action::new('export', 'CSV Export', 'fa fa-file-csv')
-                        ->createAsGlobalAction()
-                        ->linkToCrudAction('export')
-                )
-                ->add(
-                    Crud::PAGE_INDEX,
+        return $actions
+            ->disable(Action::DELETE, Action::BATCH_DELETE)
+            ->add(
+                Crud::PAGE_INDEX,
                     Action::new('view_transfer', 'View Transfer', 'fa fa-eye')
                         ->linkToCrudAction('viewTransfer')
                         ->displayIf(static fn (Fee $fee): bool => null !== $fee->getTransfer())
-                )
-        );
+            )
+            ->add(
+                Crud::PAGE_INDEX,
+                Action::new('export', 'CSV Export', 'fa fa-file-csv')
+                    ->createAsGlobalAction()
+                    ->linkToCrudAction('export')
+            );
     }
     
     public function viewTransfer(AdminContext $context): RedirectResponse
