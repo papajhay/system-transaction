@@ -8,20 +8,11 @@ use App\Repository\ExchangeRateRepository;
 use DateTimeImmutable;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
-use Symfony\Bridge\Doctrine\Validator\Constraints\UniqueEntity;
 use Symfony\Component\Validator\Constraints as Assert;
 use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 #[ORM\Entity(repositoryClass: ExchangeRateRepository::class)]
 #[ORM\Table(name: 'exchange_rate')]
-#[ORM\UniqueConstraint(
-    name: 'UNIQ_EXCHANGE_RATE_CURRENCIES',
-    columns: ['base_currency_id', 'target_currency_id'],
-)]
-#[UniqueEntity(
-    fields: ['baseCurrency', 'targetCurrency'],
-    message: 'An exchange rate already exists for this currency pair.',
-)]
 class ExchangeRate
 {
     #[ORM\Id]

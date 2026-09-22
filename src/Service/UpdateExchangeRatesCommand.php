@@ -6,7 +6,6 @@ namespace App\Service;
 
 use App\Entity\Currency;
 use App\Entity\ExchangeRate;
-use App\Repository\ExchangeRateRepository;
 use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\Console\Attribute\AsCommand;
@@ -23,7 +22,6 @@ final class UpdateExchangeRatesCommand extends Command
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly ExchangeRateProvider $exchangeRateProvider,
-        private readonly ExchangeRateRepository $exchangeRateRepository,
     ) {
         parent::__construct();
     }
@@ -55,18 +53,14 @@ final class UpdateExchangeRatesCommand extends Command
                     continue;
                 }
 
-                $exchangeRate = $this->exchangeRateRepository->findOneByCurrencyPair($baseCurrency, $targetCurrency);
-                if ($exchangeRate === null) {
-                    $exchangeRate = (new ExchangeRate())
-                        ->setBaseCurrency($baseCurrency)
-                        ->setTargetCurrency($targetCurrency)
-                        ->setCreatedAt($now);
-                    $this->entityManager->persist($exchangeRate);
-                }
-
-                $exchangeRate
+                $this->entityManager->persist(
+                    (new ExchangeRate())
+                    ->setBaseCurrency($baseCurrency)
+                    ->setTargetCurrency($targetCurrency)
                     ->setRate($rate)
-                    ->setUpdatedAt($now);
+                    ->setCreatedAt($now)
+                    ->setUpdatedAt($now)
+                );
                 ++$updatedCount;
             }
         }
