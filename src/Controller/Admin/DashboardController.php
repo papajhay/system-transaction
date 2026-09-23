@@ -4,13 +4,7 @@ declare(strict_types=1);
 
 namespace App\Controller\Admin;
 
-use App\Entity\Account;
-use App\Entity\Currency;
-use App\Entity\ExchangeRate;
-use App\Entity\Fee;
-use App\Entity\Conversion;
-use App\Entity\Operation;
-use App\Entity\Transfer;
+use App\Enum\StatusAccount;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Dashboard;
 use EasyCorp\Bundle\EasyAdminBundle\Config\MenuItem;
 use EasyCorp\Bundle\EasyAdminBundle\Controller\AbstractDashboardController;
@@ -38,46 +32,24 @@ class DashboardController extends AbstractDashboardController
             'fa fa-home'
         );
 
-        yield MenuItem::linkToCrud(
-            'Accounts',
-            'fa fa-building-columns',
-            Account::class
-        );
+        yield MenuItem::subMenu('Account', 'fa fa-building-columns')
+            ->setSubItems([
+                MenuItem::linkTo(AccountCrudController::class, 'Accounts')
+                    ->setQueryParameter('accountView', 'active'),
+                MenuItem::linkTo(AccountCrudController::class, 'Suspended Account')
+                    ->setQueryParameter('accountView', 'suspended'),
+            ]);
 
-        yield MenuItem::linkToCrud(
-            'Currencies',
-            'fa fa-coins',
-            Currency::class
-        );
+        yield MenuItem::linkTo(CurrencyCrudController::class, 'Currencies', 'fa fa-coins');
 
-        yield MenuItem::linkToCrud(
-            'Exchange rates',
-            'fa fa-arrow-right-arrow-left',
-            ExchangeRate::class
-        );
+        yield MenuItem::linkTo(ExchangeRateCrudController::class, 'Exchange rates', 'fa fa-arrow-right-arrow-left');
 
-        yield MenuItem::linkToCrud(
-            'Fees',
-            'fa fa-money-bill',
-            Fee::class
-        );
+        yield MenuItem::linkTo(FeeCrudController::class, 'Fees', 'fa fa-money-bill');
 
-        yield MenuItem::linkToCrud(
-            'Conversions',
-            'fa fa-clipboard',
-            Conversion::class
-        );
+        yield MenuItem::linkTo(ConversionCrudController::class, 'Conversions', 'fa fa-clipboard');
 
-        yield MenuItem::linkToCrud(
-            'Transfers',
-            'fa fa-clipboard',
-            Transfer::class
-        );
+        yield MenuItem::linkTo(TransferCrudController::class, 'Transfers', 'fa fa-clipboard');
 
-        yield MenuItem::linkToCrud(
-            'Operations',
-            'fa fa-list-check',
-            Operation::class
-        );
+        yield MenuItem::linkTo(OperationCrudController::class, 'Operations', 'fa fa-list-check');
     }
 }
