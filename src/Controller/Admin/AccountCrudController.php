@@ -13,17 +13,21 @@ use DateTimeImmutable;
 use DateTimeInterface;
 use Doctrine\ORM\EntityManagerInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
+use EasyCorp\Bundle\EasyAdminBundle\Collection\FilterCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Actions;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Crud;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
+use Doctrine\ORM\QueryBuilder;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Uid\Uuid;
 
@@ -111,6 +115,26 @@ final class AccountCrudController extends BaseCrudController
             ])
             ->setRequired(true)
             ->renderAsBadges(StatusAccount::badgeStyles());
+    }
+
+    public function createIndexQueryBuilder(
+        SearchDto $searchDto,
+        EntityDto $entityDto,
+        FieldCollection $fields,
+        FilterCollection $filters,
+    ): QueryBuilder {
+        $queryBuilder = parent::createIndexQueryBuilder($searchDto, $entityDto, $fields, $filters);
+        if ($searchDto->getRequest()->query->get('accountView') === 'suspended') {
+            $queryBuilder
+                ->andWhere('entity.status = :suspendedStatus')
+                ->setParameter('suspendedStatus', StatusAccount::SUSPENDED->value);
+        } else {
+            $queryBuilder
+                ->andWhere('entity.status != :suspendedStatus')
+                ->setParameter('suspendedStatus', StatusAccount::SUSPENDED->value);
+        }
+
+        return $queryBuilder;
     }
 
     public function configureActions(Actions $actions): Actions
@@ -204,6 +228,20 @@ final class AccountCrudController extends BaseCrudController
     public function updateEntity(EntityManagerInterface $entityManager, $entityInstance): void
     {
         $entityInstance->setUpdatedAt(new DateTimeImmutable());
+        $entityManager->flush();
+    }
+
+    public function deleteEntity(EntityManagerInterface $entityManager, $entityInstance): void
+    {
+        if (!$entityInstance instanceof Account) {
+            throw new \InvalidArgumentException('Expected an account entity.');
+        }
+
+        $entityInstance
+            ->setStatus(StatusAccount::SUSPENDED)
+            ->setUpdatedAt(new DateTimeImmutable());
+
+        $entityManager->persist($entityInstance);
         $entityManager->flush();
     }
 }
