@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Entity;
 
 use App\Enum\StatusTransfer;
+use App\Enum\TypeFee;
 use App\Enum\TypeTransfer;
 use DateTimeImmutable;
+use Doctrine\Common\Collections\ArrayCollection;
+use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
@@ -47,6 +50,10 @@ class Transfer
     #[ORM\JoinColumn(name: 'received_currency_id', referencedColumnName: 'id', nullable: false)]
     private ?Currency $receivedCurrency = null;
 
+    /** @var Collection<int, Fee> */
+    #[ORM\OneToMany(mappedBy: 'transfer', targetEntity: Fee::class)]
+    private Collection $fees;
+
     #[ORM\Column(name: 'exchange_rate', type: Types::DECIMAL, precision: 20, scale: 10)]
     private string $exchangeRate;
 
@@ -70,6 +77,11 @@ class Transfer
 
     #[ORM\Column(name: 'updated_at', type: Types::DATETIME_IMMUTABLE)]
     private DateTimeImmutable $updatedAt;
+
+    public function __construct()
+    {
+        $this->fees = new ArrayCollection();
+    }
 
     public function getId(): ?int
     {
@@ -170,6 +182,46 @@ class Transfer
         $this->receivedCurrency = $receivedCurrency;
 
         return $this;
+    }
+
+    /** @return Collection<int, Fee> */
+    public function getFees(): Collection
+    {
+        return $this->fees;
+    }
+
+    /**
+     * A processed transfer currently has one fee record. Keeping the
+     * collection mapping above reflects the existing database cardinality.
+     */
+    public function getFee(): ?Fee
+    {
+        $fee = $this->fees->first();
+
+        return $fee instanceof Fee ? $fee : null;
+    }
+
+    public function getFeeType(): ?TypeFee
+    {
+        return $this->getFee()?->getType();
+    }
+
+    public function getFeeAmount(): ?float
+    {
+        $fee = $this->getFee();
+
+        return null !== $fee && $fee->getType() !== TypeFee::FREE_CHARGED
+            ? $fee->getAmount()
+            : null;
+    }
+
+    public function getFeeRate(): ?float
+    {
+        $fee = $this->getFee();
+
+        return null !== $fee && $fee->getType() === TypeFee::FEE_CHARGED_RATE
+            ? $fee->getRate()
+            : null;
     }
 
     public function getExchangeRate(): string

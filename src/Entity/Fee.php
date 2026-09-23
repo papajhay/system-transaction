@@ -18,7 +18,7 @@ class Fee
     #[ORM\Column(type: Types::INTEGER)]
     private ?int $id = null;
 
-    #[ORM\ManyToOne(targetEntity: Transfer::class)]
+    #[ORM\ManyToOne(targetEntity: Transfer::class, inversedBy: 'fees')]
     #[ORM\JoinColumn(name: 'transfer_id', referencedColumnName: 'id', nullable: true, onDelete: 'CASCADE')]
     private ?Transfer $transfer = null;
 
