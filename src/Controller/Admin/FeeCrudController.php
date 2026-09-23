@@ -25,11 +25,9 @@ use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
-use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\NumericFilter;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -46,21 +44,13 @@ final class FeeCrudController extends BaseCrudController
         return $crud
             ->setEntityLabelInSingular('Fee')
             ->setEntityLabelInPlural('Fees')
-            ->setSearchFields(['type', 'transfer.reference'])
+            ->setSearchFields(['transfer.reference'])
             ->setDefaultSort(['createdAt' => 'DESC']);
     }
 
     public function configureFilters(Filters $filters): Filters
     {
         return $filters
-            ->add(
-                ChoiceFilter::new('type', 'Type')
-                    ->setChoices([
-                    'Fixed fee' => TypeFee::FEE_CHARGED_FIXED,
-                    'Rate fee' => TypeFee::FEE_CHARGED_RATE,
-                    'Free charged' => TypeFee::FREE_CHARGED,
-                    ])
-            )
             ->add(EntityFilter::new('transfer', 'Transfer'))
             ->add(NumericFilter::new('amount', 'Amount'))
             ->add(NumericFilter::new('rate', 'Rate'))
@@ -83,14 +73,6 @@ final class FeeCrudController extends BaseCrudController
         yield AssociationField::new('transfer', 'Transfer')
             ->setFormTypeOption('choice_label', 'reference')
             ->setRequired(false);
-
-        yield ChoiceField::new('type', 'Type')
-            ->setChoices([
-                'Fixed fee' => TypeFee::FEE_CHARGED_FIXED,
-                'Rate fee' => TypeFee::FEE_CHARGED_RATE,
-                'Free charged' => TypeFee::FREE_CHARGED,
-            ])
-            ->setRequired(true);
 
         yield TextField::new('name', 'Name')
             ->setRequired(false);
@@ -176,7 +158,6 @@ final class FeeCrudController extends BaseCrudController
             fputcsv($output, [
                 'id',
                 'transfer',
-                'type',
                 'name',
                 'rate',
                 'amount',
@@ -189,7 +170,6 @@ final class FeeCrudController extends BaseCrudController
                 fputcsv($output, [
                     $fee->getId(),
                     $fee->getTransfer()?->getReference() ?? '',
-                    $fee->getType()->value,
                     $fee->getName() ?? '',
                     $fee->getRate(),
                     $fee->getAmount(),

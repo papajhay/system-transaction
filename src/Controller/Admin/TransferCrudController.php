@@ -6,6 +6,7 @@ namespace App\Controller\Admin;
 
 use App\Entity\Transfer;
 use App\Enum\StatusTransfer;
+use App\Enum\TypeFee;
 use App\Service\DateRangeFilter;
 use DateTimeInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
@@ -87,6 +88,25 @@ final class TransferCrudController extends AbstractCrudController
                 
                 return $formatted . ' ' . $symbol;
         });
+
+        yield ChoiceField::new('feeType', 'Fee Type')
+            ->setChoices([
+                'Fixed fee' => TypeFee::FEE_CHARGED_FIXED,
+                'Rate fee' => TypeFee::FEE_CHARGED_RATE,
+                'Free charged' => TypeFee::FREE_CHARGED,
+            ])
+            ->formatValue(static fn (?TypeFee $value): string => $value?->name === 'FEE_CHARGED_FIXED'
+                ? 'Fixed fee'
+                : ($value?->name === 'FEE_CHARGED_RATE' ? 'Rate fee' : ($value?->name === 'FREE_CHARGED' ? 'Free charged' : '')))
+            ->hideOnForm();
+
+        yield NumberField::new('feeAmount', 'Fee Amount')
+            ->setNumDecimals(2)
+            ->hideOnForm();
+
+        yield NumberField::new('feeRate', 'Fee Rate (%)')
+            ->setNumDecimals(4)
+            ->hideOnForm();
 
         yield DateTimeField::new('createdAt', 'Created At')
             ->setFormat('MMM d, yyyy HH:mm:ss')
@@ -183,6 +203,9 @@ final class TransferCrudController extends AbstractCrudController
                 'exchange_rate',
                 'type',
                 'status',
+                'fee_type',
+                'fee_amount',
+                'fee_rate',
                 'description',
                 'processed_at',
                 'expires_at',
@@ -205,6 +228,9 @@ final class TransferCrudController extends AbstractCrudController
                     $transfer->getExchangeRate(),
                     $transfer->getType()->value,
                     $transfer->getStatus()->value,
+                    $transfer->getFeeType()?->value ?? '',
+                    $transfer->getFeeAmount(),
+                    $transfer->getFeeRate(),
                     $transfer->getDescription() ?? '',
                     $transfer->getProcessedAt()?->format(DateTimeInterface::ATOM) ?? '',
                     $transfer->getExpiresAt()?->format(DateTimeInterface::ATOM) ?? '',
