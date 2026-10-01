@@ -60,6 +60,15 @@ class Transfer
     #[ORM\Column(type: Types::STRING, enumType: TypeTransfer::class)]
     private TypeTransfer $type = TypeTransfer::TRANSFER;
 
+    #[ORM\Column(name: 'fee_type', type: Types::STRING, enumType: TypeFee::class, options: ['default' => 'free charged'])]
+    private TypeFee $feeType = TypeFee::FREE_CHARGED;
+
+    #[ORM\Column(name: 'fee_rate', type: Types::FLOAT, options: ['default' => 0])]
+    private float $feeRate = 0.0;
+
+    #[ORM\Column(name: 'fee_amount', type: Types::FLOAT, options: ['default' => 0])]
+    private float $feeAmount = 0.0;
+
     #[ORM\Column(type: Types::STRING, enumType: StatusTransfer::class)]
     private StatusTransfer $status = StatusTransfer::PENDING;
 
@@ -203,25 +212,38 @@ class Transfer
 
     public function getFeeType(): ?TypeFee
     {
-        return $this->getFee()?->getType();
+        return $this->feeType;
     }
 
-    public function getFeeAmount(): ?float
+    public function setFeeType(TypeFee $feeType): self
     {
-        $fee = $this->getFee();
+        $this->feeType = $feeType;
 
-        return null !== $fee && $fee->getType() !== TypeFee::FREE_CHARGED
-            ? $fee->getAmount()
-            : null;
+        return $this;
     }
 
-    public function getFeeRate(): ?float
+    public function getFeeAmount(): float
     {
-        $fee = $this->getFee();
+        return $this->feeAmount;
+    }
 
-        return null !== $fee && $fee->getType() === TypeFee::FEE_CHARGED_RATE
-            ? $fee->getRate()
-            : null;
+    public function setFeeAmount(float $feeAmount): self
+    {
+        $this->feeAmount = $feeAmount;
+
+        return $this;
+    }
+
+    public function getFeeRate(): float
+    {
+        return $this->feeRate;
+    }
+
+    public function setFeeRate(float $feeRate): self
+    {
+        $this->feeRate = $feeRate;
+
+        return $this;
     }
 
     public function getExchangeRate(): string

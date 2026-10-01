@@ -158,6 +158,9 @@ final class TransferProcessor implements ProcessorInterface
         $cross=$sender->getCurrency()?->getId()!==$receiver->getCurrency()?->getId();
         $feeDetails = $cross ? $this->freeFeeDetails() : $this->feeDetails($amount);
         $fee = $feeDetails['amount'];
+        $t->setFeeType($feeDetails['type'])
+            ->setFeeRate($feeDetails['rate'] ?? 0.0)
+            ->setFeeAmount($fee);
         $debitAmount=$this->money($amount+$fee);
         $balanceAfterDebit=bcsub($sender->getBalance(),$debitAmount,2);
         if(bccomp($balanceAfterDebit,'0.00',2)<0)throw new BadRequestHttpException('Insufficient balance');
