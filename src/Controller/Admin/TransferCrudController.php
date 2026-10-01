@@ -7,7 +7,9 @@ namespace App\Controller\Admin;
 use App\Entity\Transfer;
 use App\Enum\StatusTransfer;
 use App\Enum\TypeFee;
+use App\Form\TransferType;
 use App\Service\DateRangeFilter;
+use App\Service\TransferInitializer;
 use DateTimeInterface;
 use EasyCorp\Bundle\EasyAdminBundle\Collection\FieldCollection;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Action;
@@ -20,6 +22,8 @@ use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Form\Type\ComparisonType;
 use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
 use EasyCorp\Bundle\EasyAdminBundle\Config\Option\EA;
+use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
+use EasyCorp\Bundle\EasyAdminBundle\Config\KeyValueStore;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
@@ -29,10 +33,22 @@ use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\NumericFilter;
 use Symfony\Component\HttpFoundation\RedirectResponse;
+use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Symfony\Component\Form\FormFactoryInterface;
+use Symfony\Component\Form\FormBuilderInterface;
+use Doctrine\ORM\EntityManagerInterface;
 
 final class TransferCrudController extends AbstractCrudController
 {
+    public function __construct(
+        private readonly FormFactoryInterface $formFactory,
+        private readonly TransferInitializer $transferInitializer,
+        private readonly RequestStack $requestStack,
+    )
+    {
+    }
+
     public static function getEntityFqcn(): string
     {
         return Transfer::class;
@@ -143,6 +159,50 @@ final class TransferCrudController extends AbstractCrudController
                     ->createAsGlobalAction()
                     ->linkToCrudAction('export')
             );
+    }
+
+    public function createNewFormBuilder(
+        EntityDto $entityDto,
+        KeyValueStore $formOptions,
+        AdminContext $context,
+    ): FormBuilderInterface {
+        $formOptions->set('entityDto', $entityDto);
+        $formOptions->setIfNotSet('translation_domain', $context->getI18n()->getTranslationDomain());
+        $formOptions->set('attr.class', trim(($formOptions->get('attr.class') ?? '').' ea-new-form'));
+        $formOptions->set('attr.id', sprintf('new-%s-form', $entityDto->getName()));
+
+        return $this->formFactory->createNamedBuilder(
+            $entityDto->getName(),
+            TransferType::class,
+            $entityDto->getInstance(),
+            $formOptions->all(),
+        );
+    }
+
+    public function persistEntity(
+        EntityManagerInterface $entityManager,
+        $entityInstance,
+    ): void {
+        if (!$entityInstance instanceof Transfer) {
+            throw new \InvalidArgumentException('Expected a transfer entity.');
+        }
+
+        $request = $this->requestStack->getCurrentRequest();
+        if ($request === null) {
+            throw new \RuntimeException('Unable to read the transfer form request.');
+        }
+
+        $allData = $request->request->all();
+        $data = $allData['Transfer'] ?? $allData;
+
+        $this->transferInitializer->initialize(
+            $entityInstance,
+            $entityInstance->getType(),
+            is_array($data) ? $data : [],
+        );
+
+        $entityManager->persist($entityInstance);
+        $entityManager->flush();
     }
 
     public function viewOperation(AdminContext $context): RedirectResponse
