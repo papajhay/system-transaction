@@ -26,7 +26,46 @@ final class AccountAdministrationTest extends TestCase
         (new AccountCrudController())->deleteEntity($entityManager, $account);
 
         self::assertSame(StatusAccount::SUSPENDED, $account->getStatus());
+        self::assertSame(StatusAccount::ACTIVE, $account->getPreviousStatus());
         self::assertGreaterThan(new DateTimeImmutable('yesterday'), $account->getUpdatedAt());
+    }
+
+    public function testRestoringAnAccountUsesItsPreviousStatusAndClearsIt(): void
+    {
+        $account = (new Account())
+            ->setStatus(StatusAccount::SUSPENDED)
+            ->setPreviousStatus(StatusAccount::CLOSED)
+            ->setUpdatedAt(new DateTimeImmutable('yesterday'));
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::once())->method('persist')->with($account);
+        $entityManager->expects(self::once())->method('flush');
+
+        (new AccountCrudController())->restoreEntity($entityManager, $account);
+
+        self::assertSame(StatusAccount::CLOSED, $account->getStatus());
+        self::assertNull($account->getPreviousStatus());
+        self::assertGreaterThan(new DateTimeImmutable('yesterday'), $account->getUpdatedAt());
+    }
+
+    public function testRestoringAnAccountDefaultsToActiveWhenThereIsNoPreviousStatus(): void
+    {
+        $account = (new Account())->setStatus(StatusAccount::SUSPENDED);
+        $entityManager = $this->createMock(EntityManagerInterface::class);
+        $entityManager->expects(self::once())->method('persist')->with($account);
+        $entityManager->expects(self::once())->method('flush');
+
+        (new AccountCrudController())->restoreEntity($entityManager, $account);
+
+        self::assertSame(StatusAccount::ACTIVE, $account->getStatus());
+        self::assertNull($account->getPreviousStatus());
+    }
+
+    public function testRestoringAnActiveAccountIsRejected(): void
+    {
+        $account = (new Account())->setStatus(StatusAccount::ACTIVE);
+
+        $this->expectException(\LogicException::class);
+        (new AccountCrudController())->restoreEntity($this->createMock(EntityManagerInterface::class), $account);
     }
 
     public function testAccountMenuContainsActiveAndSuspendedSections(): void
