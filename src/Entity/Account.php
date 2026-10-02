@@ -38,6 +38,9 @@ class Account
     #[ORM\Column(type: Types::STRING, enumType: StatusAccount::class, options: ['default' => 'active'])]
     private StatusAccount $status = StatusAccount::ACTIVE;
 
+    #[ORM\Column(name: 'previous_status', type: Types::STRING, enumType: StatusAccount::class, nullable: true)]
+    private ?StatusAccount $previousStatus = null;
+
     #[ORM\Column(name: 'created_at', type: Types::DATETIME_IMMUTABLE)]
     private DateTimeImmutable $createdAt;
 
@@ -117,6 +120,18 @@ class Account
     public function setStatus(StatusAccount $status): self
     {
         $this->status = $status;
+
+        return $this;
+    }
+
+    public function getPreviousStatus(): ?StatusAccount
+    {
+        return $this->previousStatus;
+    }
+
+    public function setPreviousStatus(?StatusAccount $previousStatus): self
+    {
+        $this->previousStatus = $previousStatus;
 
         return $this;
     }

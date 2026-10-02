@@ -21,6 +21,8 @@ use EasyCorp\Bundle\EasyAdminBundle\Config\Filters;
 use EasyCorp\Bundle\EasyAdminBundle\Context\AdminContext;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
+use EasyCorp\Bundle\EasyAdminBundle\Router\AdminUrlGenerator;
+use EasyCorp\Bundle\EasyAdminBundle\Config\Option\EA;
 use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
@@ -28,6 +30,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\ChoiceFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use Doctrine\ORM\QueryBuilder;
+use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Uid\Uuid;
 
@@ -139,14 +142,38 @@ final class AccountCrudController extends BaseCrudController
 
     public function configureActions(Actions $actions): Actions
     {
-        return $this->configureCommonActions(
-            $actions->add(
+        $actions = $this->configureCommonActions($actions)
+            ->update(
+                Crud::PAGE_INDEX,
+                Action::EDIT,
+                fn (Action $action): Action => $action->displayIf(fn (Account $account): bool => !$this->isSuspendedView())
+            )
+            ->update(
+                Crud::PAGE_INDEX,
+                Action::DELETE,
+                fn (Action $action): Action => $action->displayIf(fn (Account $account): bool => !$this->isSuspendedView())
+            )
+            ->add(
+                Crud::PAGE_INDEX,
+                Action::new('restore', 'Restore', 'fa fa-rotate-left')
+                    ->linkToCrudAction('restore')
+                    ->displayIf(fn (Account $account): bool =>
+                        $this->isSuspendedView()
+                        && $account->getStatus() === StatusAccount::SUSPENDED
+                    )
+            )->add(
                 Crud::PAGE_INDEX,
                 Action::new('export', 'CSV Export', 'fa fa-file-csv')
                     ->createAsGlobalAction()
                     ->linkToCrudAction('export')
-            )
-        );
+            );
+
+        return $actions;
+    }
+
+    private function isSuspendedView(): bool
+    {
+        return $this->container->get('request_stack')->getCurrentRequest()?->query->get('accountView') === 'suspended';
     }
 
     public function export(AdminContext $context): StreamedResponse
@@ -237,11 +264,72 @@ final class AccountCrudController extends BaseCrudController
             throw new \InvalidArgumentException('Expected an account entity.');
         }
 
+        if ($entityInstance->getStatus() !== StatusAccount::SUSPENDED) {
+            $entityInstance->setPreviousStatus($entityInstance->getStatus());
+        }
+
         $entityInstance
             ->setStatus(StatusAccount::SUSPENDED)
             ->setUpdatedAt(new DateTimeImmutable());
 
         $entityManager->persist($entityInstance);
         $entityManager->flush();
+    }
+
+    public function delete(AdminContext $context): Response
+    {
+        $response = parent::delete($context);
+        $entity = $context->getEntity()->getInstance();
+
+        if ($response->isRedirection() && $entity instanceof Account && $entity->getStatus() === StatusAccount::SUSPENDED) {
+            //$this->addFlash('success', 'Account suspended successfully.');
+
+            return $this->redirect($this->getAccountIndexUrl('suspended'));
+        }
+
+        return $response;
+    }
+
+    public function restore(AdminContext $context): \Symfony\Component\HttpFoundation\RedirectResponse
+    {
+        $entity = $context->getEntity()->getInstance();
+        if (!$entity instanceof Account) {
+            throw new \InvalidArgumentException('Expected an account entity.');
+        }
+
+        $entityManager = $this->container->get('doctrine')->getManagerForClass(Account::class);
+        $this->restoreEntity($entityManager, $entity);
+        //$this->addFlash('success', 'Account restored successfully.');
+
+        return $this->redirect($this->getAccountIndexUrl('active'));
+    }
+
+    public function restoreEntity(EntityManagerInterface $entityManager, $entityInstance): void
+    {
+        if (!$entityInstance instanceof Account) {
+            throw new \InvalidArgumentException('Expected an account entity.');
+        }
+
+        if ($entityInstance->getStatus() !== StatusAccount::SUSPENDED) {
+            throw new \LogicException('Only suspended accounts can be restored.');
+        }
+
+        $entityInstance
+            ->setStatus($entityInstance->getPreviousStatus() ?? StatusAccount::ACTIVE)
+            ->setPreviousStatus(null)
+            ->setUpdatedAt(new DateTimeImmutable());
+
+        $entityManager->persist($entityInstance);
+        $entityManager->flush();
+    }
+
+    private function getAccountIndexUrl(string $accountView): string
+    {
+        return $this->container->get(AdminUrlGenerator::class)
+            ->setController(self::class)
+            ->setAction(Crud::PAGE_INDEX)
+            ->unset(EA::ENTITY_ID)
+            ->set('accountView', $accountView)
+            ->generateUrl();
     }
 }
