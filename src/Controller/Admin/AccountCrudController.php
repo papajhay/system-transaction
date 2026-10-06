@@ -282,7 +282,14 @@ final class AccountCrudController extends BaseCrudController
         $entity = $context->getEntity()->getInstance();
 
         if ($response->isRedirection() && $entity instanceof Account && $entity->getStatus() === StatusAccount::SUSPENDED) {
-            //$this->addFlash('success', 'Account suspended successfully.');
+     
+             $this->addFlash(
+                'success',
+                sprintf(
+                    'Account "%s" suspended successfully.',
+                    $entity->getAccountNumber()
+                )
+        );
 
             return $this->redirect($this->getAccountIndexUrl('suspended'));
         }
@@ -299,7 +306,13 @@ final class AccountCrudController extends BaseCrudController
 
         $entityManager = $this->container->get('doctrine')->getManagerForClass(Account::class);
         $this->restoreEntity($entityManager, $entity);
-        //$this->addFlash('success', 'Account restored successfully.');
+        $this->addFlash(
+            'success',
+            sprintf(
+                'Account "%s" restored successfully.',
+                $entity->getAccountNumber()
+            )
+        );
 
         return $this->redirect($this->getAccountIndexUrl('active'));
     }
