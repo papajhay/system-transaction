@@ -19,30 +19,37 @@ final class TransferTypeTest extends TypeTestCase
 {
     #[Test]
     #[DataProvider('feeChoices')]
-    public function itCalculatesAndStoresTheSelectedFee(
+    public function itKeepsBothFeeFieldsAvailableForSubmission(
         TypeFee $feeType,
-        float $rate,
+        float $feeInput,
         float $amount,
-        float $expectedFee,
     ): void {
         $transfer = (new Transfer())->setType(TypeTransfer::DEPOSIT);
         $form = $this->factory->create(TransferType::class, $transfer);
 
-        $form->submit([
+        $submittedData = [
             'type' => TypeTransfer::DEPOSIT->value,
             'account_number' => 'ACC-001',
             'amount' => $amount,
             'description' => '',
             'feeType' => $feeType->value,
-        ]);
+        ];
+        if ($feeType === TypeFee::FEE_CHARGED_FIXED) {
+            $submittedData['feeAmount'] = $feeInput;
+        } elseif ($feeType === TypeFee::FEE_CHARGED_RATE) {
+            $submittedData['feeRate'] = $feeInput;
+        }
+        $form->submit($submittedData);
 
         self::assertTrue($form->isSynchronized());
         self::assertSame($feeType, $transfer->getFeeType());
-        self::assertSame($rate, $transfer->getFeeRate());
-        self::assertSame($expectedFee, $transfer->getFeeAmount());
-        self::assertSame($feeType === TypeFee::FREE_CHARGED, !$form->has('feeAmount'));
-        if ($feeType !== TypeFee::FREE_CHARGED) {
-            self::assertSame(number_format($expectedFee, 2, '.', ''), $form->get('feeAmount')->getViewData());
+        self::assertTrue($form->has('feeAmount'));
+        self::assertTrue($form->has('feeRate'));
+        if ($feeType === TypeFee::FEE_CHARGED_FIXED) {
+            self::assertSame(number_format($feeInput, 2, '.', ''), $form->get('feeAmount')->getViewData());
+        }
+        if ($feeType === TypeFee::FEE_CHARGED_RATE) {
+            self::assertSame(number_format($feeInput, 2, '.', ''), $form->get('feeRate')->getViewData());
         }
         self::assertTrue($form->has('account_number'));
     }
@@ -53,13 +60,15 @@ final class TransferTypeTest extends TypeTestCase
         $transfer = (new Transfer())
             ->setType(TypeTransfer::DEPOSIT)
             ->setFeeType(TypeFee::FEE_CHARGED_RATE)
+            ->setFeeRate(20.0)
             ->setFeeAmount(20.0);
         $transfer->setAmount('100.00');
 
         $form = $this->factory->create(TransferType::class, $transfer);
 
         self::assertTrue($form->has('feeAmount'));
-        self::assertSame('20.00', $form->get('feeAmount')->getViewData());
+        self::assertTrue($form->has('feeRate'));
+        self::assertSame('20.00', $form->get('feeRate')->getViewData());
     }
 
     #[Test]
@@ -82,12 +91,33 @@ final class TransferTypeTest extends TypeTestCase
         self::assertNotEmpty($form->get('amount')->getErrors());
     }
 
-    /** @return iterable<string, array{TypeFee, float, float, float}> */
+    #[Test]
+    public function itRejectsInvalidFeeValues(): void
+    {
+        $form = $this->factory->create(
+            TransferType::class,
+            (new Transfer())->setType(TypeTransfer::DEPOSIT),
+        );
+
+        $form->submit([
+            'type' => TypeTransfer::DEPOSIT->value,
+            'account_number' => 'ACC-001',
+            'amount' => 1000,
+            'description' => '',
+            'feeType' => TypeFee::FEE_CHARGED_RATE->value,
+            'feeRate' => 100.01,
+        ]);
+
+        self::assertFalse($form->isValid());
+        self::assertNotEmpty($form->get('feeRate')->getErrors());
+    }
+
+    /** @return iterable<string, array{TypeFee, float, float}> */
     public static function feeChoices(): iterable
     {
-        yield 'fixed fee' => [TypeFee::FEE_CHARGED_FIXED, 0.01, 1000.0, 0.1];
-        yield 'no fee' => [TypeFee::FREE_CHARGED, 0.0, 1000.0, 0.0];
-        yield 'fee rate' => [TypeFee::FEE_CHARGED_RATE, 20.0, 1000.0, 200.0];
+        yield 'fixed fee' => [TypeFee::FEE_CHARGED_FIXED, 25.5, 1000.0];
+        yield 'no fee' => [TypeFee::FREE_CHARGED, 0.0, 1000.0];
+        yield 'fee rate' => [TypeFee::FEE_CHARGED_RATE, 12.5, 1000.0];
     }
 
     protected function getExtensions(): array

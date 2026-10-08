@@ -28,9 +28,12 @@ final class TransferInitializer
         $feeType = is_string($data['feeType'] ?? null)
             ? TypeFee::tryFrom($data['feeType']) ?? TypeFee::FREE_CHARGED
             : TypeFee::FREE_CHARGED;
-        $feeRate = match ($feeType) {
-            TypeFee::FEE_CHARGED_FIXED => 0.01,
-            TypeFee::FEE_CHARGED_RATE => 20.0,
+        $feeRate = $feeType === TypeFee::FEE_CHARGED_RATE
+            ? $transfer->getFeeRate()
+            : 0.0;
+        $feeAmount = match ($feeType) {
+            TypeFee::FEE_CHARGED_FIXED => $transfer->getFeeAmount(),
+            TypeFee::FEE_CHARGED_RATE => round((float) $amount * $feeRate / 100, 2, PHP_ROUND_HALF_UP),
             TypeFee::FREE_CHARGED => 0.0,
         };
         $now = new DateTimeImmutable();
@@ -40,7 +43,7 @@ final class TransferInitializer
             ->setDescription($description)
             ->setFeeType($feeType)
             ->setFeeRate($feeRate)
-            ->setFeeAmount(round((float) $amount * $feeRate / 100, 2, PHP_ROUND_HALF_UP))
+            ->setFeeAmount($feeAmount)
             ->setToken(Uuid::v4()->toRfc4122())
             ->setReference($this->reference($type))
             ->setStatus(StatusTransfer::PENDING)
