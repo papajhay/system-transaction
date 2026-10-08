@@ -7,13 +7,13 @@ namespace App\Form;
 use App\Enum\TypeFee;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Component\Form\Extension\Core\Type\ChoiceType;
-use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\OptionsResolver\OptionsResolver;
 
 final class TypeFeeType extends AbstractType
 {
-    public function buildForm(FormBuilderInterface $builder, array $options): void
+    public function configureOptions(OptionsResolver $resolver): void
     {
-        $builder->add('feeType', ChoiceType::class, [
+        $resolver->setDefaults([
             'choices' => TypeFee::cases(),
             'choice_label' => static fn (TypeFee $feeType): string => match ($feeType) {
                 TypeFee::FEE_CHARGED_FIXED => 'Fixed fee',
@@ -23,5 +23,10 @@ final class TypeFeeType extends AbstractType
             'choice_value' => static fn (?TypeFee $feeType): ?string => $feeType?->value,
             'required' => true,
         ]);
+    }
+
+    public function getParent(): string
+    {
+        return ChoiceType::class;
     }
 }

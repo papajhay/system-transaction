@@ -22,8 +22,9 @@ use Symfony\Component\Form\FormError;
 use Symfony\Component\OptionsResolver\OptionsResolver;
 use Symfony\Component\Validator\Constraints\Length;
 use Symfony\Component\Validator\Constraints\Positive;
-use Symfony\Component\Validator\Constraints\PositiveOrZero;
 use Symfony\Component\Validator\Constraints\NotNull;
+use Symfony\Component\Validator\Constraints\Callback;
+use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 final class TransferType extends AbstractType
 {
@@ -40,11 +41,7 @@ final class TransferType extends AbstractType
             $data = $event->getData();
             $type = $data instanceof Transfer ? $data->getType() : null;
 
-            $this->configureConditionalFields($event->getForm(), $type);
-
-            if ($data instanceof Transfer && $data->getFeeType() !== TypeFee::FREE_CHARGED) {
-                $this->configureFeeAmountField($event->getForm(), $data->getFeeType(), (float) $data->getAmount());
-            }
+            $this->configureConditionalFields($event->getForm(), $type, $data instanceof Transfer ? $data : null);
         });
 
         $builder->addEventListener(FormEvents::PRE_SUBMIT, function (FormEvent $event): void {
@@ -53,31 +50,6 @@ final class TransferType extends AbstractType
             $type = is_string($submittedType) ? TypeTransfer::tryFrom($submittedType) : null;
 
             $this->configureConditionalFields($event->getForm(), $type);
-
-            $transfer = $event->getForm()->getData();
-            $submittedFeeType = is_array($submittedData) ? ($submittedData['feeType'] ?? null) : null;
-            $feeType = is_string($submittedFeeType) ? TypeFee::tryFrom($submittedFeeType) : null;
-            $amount = is_array($submittedData) ? ($submittedData['amount'] ?? null) : null;
-
-            if ($feeType instanceof TypeFee && is_numeric($amount)) {
-                $rate = $this->feeRate($feeType);
-                $feeAmount = round((float) $amount * $rate / 100, 2, PHP_ROUND_HALF_UP);
-
-                $this->configureFeeAmountField($event->getForm(), $feeType, (float) $amount);
-
-                if (is_array($submittedData)) {
-                    $submittedData['feeAmount'] = $feeAmount;
-                    $event->setData($submittedData);
-                }
-
-                if ($transfer instanceof Transfer) {
-                    $transfer->setFeeType($feeType)
-                        ->setFeeRate($rate)
-                        ->setFeeAmount($feeAmount);
-                }
-            } elseif ($transfer instanceof Transfer && $feeType === TypeFee::FREE_CHARGED) {
-                $transfer->setFeeRate(0.0)->setFeeAmount(0.0);
-            }
         });
 
         $builder->addEventListener(FormEvents::POST_SUBMIT, function (FormEvent $event): void {
@@ -108,9 +80,13 @@ final class TransferType extends AbstractType
         $resolver->setDefined('entityDto');
     }
 
-    private function configureConditionalFields(FormInterface $form, ?TypeTransfer $type): void
+    private function configureConditionalFields(
+        FormInterface $form,
+        ?TypeTransfer $type,
+        ?Transfer $transfer = null,
+    ): void
     {
-        foreach (['account_number', 'from_account_number', 'to_account_number', 'amount', 'description', 'feeType', 'feeAmount'] as $field) {
+        foreach (['account_number', 'from_account_number', 'to_account_number', 'amount', 'description', 'feeType'] as $field) {
             if ($form->has($field)) {
                 $form->remove($field);
             }
@@ -141,16 +117,16 @@ final class TransferType extends AbstractType
             'constraints' => [new Length(max: 255)],
         ]);
 
-        $form->add('feeType', ChoiceType::class, [
+        $form->add('feeType', TypeFeeType::class, [
             'label' => 'Fee type',
-            'choices' => [
-                'Fixed fee' => TypeFee::FEE_CHARGED_FIXED,
-                'No fee' => TypeFee::FREE_CHARGED,
-                'Fee rate' => TypeFee::FEE_CHARGED_RATE,
-            ],
-            'choice_value' => static fn (?TypeFee $feeType): ?string => $feeType?->value,
             'required' => true,
+            'attr' => [
+                'data-controller' => 'fee-type',
+                'data-action' => 'change->fee-type#change',
+            ],
         ]);
+
+        $this->addFeeFields($form, $transfer);
     }
 
     private function addAccountField(FormInterface $form, string $name, string $label): void
@@ -175,32 +151,62 @@ final class TransferType extends AbstractType
         ]);
     }
 
-    private function configureFeeAmountField(FormInterface $form, TypeFee $feeType, float $amount): void
+    private function addFeeFields(FormInterface $form, ?Transfer $transfer): void
     {
-        if ($form->has('feeAmount')) {
-            $form->remove('feeAmount');
-        }
-
-        if ($feeType === TypeFee::FREE_CHARGED) {
-            return;
-        }
-
         $form->add('feeAmount', NumberType::class, [
-            'label' => 'Fee amount',
-            'required' => true,
+            'label' => 'Fixed fee amount',
+            'mapped' => true,
+            'required' => false,
+            'empty_data' => '0',
             'scale' => 2,
-            'attr' => ['readonly' => true],
-            'constraints' => [new PositiveOrZero()],
-            'data' => round($amount * $this->feeRate($feeType) / 100, 2, PHP_ROUND_HALF_UP),
+            'constraints' => [
+                new Callback(function (mixed $value, ExecutionContextInterface $context) use ($form): void {
+                    $transfer = $form->getData();
+                    if (!$transfer instanceof Transfer || $transfer->getFeeType() !== TypeFee::FEE_CHARGED_FIXED) {
+                        return;
+                    }
+
+                    if ($value === null || !is_numeric($value) || (float) $value <= 0) {
+                        $context->buildViolation('This value should be positive.')->addViolation();
+                    }
+                }),
+            ],
+            'data' => $transfer?->getFeeAmount() ?? 0.0,
+            'row_attr' => [
+                'data-fee-field' => 'amount',
+                'hidden' => true,
+            ],
+        ]);
+
+        $form->add('feeRate', NumberType::class, [
+            'label' => 'Fee rate (%)',
+            'mapped' => true,
+            'required' => false,
+            'empty_data' => '0',
+            'scale' => 2,
+            'constraints' => [
+                new Callback(function (mixed $value, ExecutionContextInterface $context) use ($form): void {
+                    $transfer = $form->getData();
+                    if (!$transfer instanceof Transfer || $transfer->getFeeType() !== TypeFee::FEE_CHARGED_RATE) {
+                        return;
+                    }
+
+                    if ($value === null || !is_numeric($value)) {
+                        $context->buildViolation('This value is required for a fee rate.')->addViolation();
+                        return;
+                    }
+
+                    if ((float) $value < 0 || (float) $value > 100) {
+                        $context->buildViolation('This value should be between 0 and 100.')->addViolation();
+                    }
+                }),
+            ],
+            'data' => $transfer?->getFeeRate() ?? 0.0,
+            'row_attr' => [
+                'data-fee-field' => 'rate',
+                'hidden' => true,
+            ],
         ]);
     }
 
-    private function feeRate(TypeFee $feeType): float
-    {
-        return match ($feeType) {
-            TypeFee::FEE_CHARGED_FIXED => 0.01,
-            TypeFee::FREE_CHARGED => 0.0,
-            TypeFee::FEE_CHARGED_RATE => 20.0,
-        };
-    }
 }
