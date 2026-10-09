@@ -64,7 +64,16 @@ final class TransferInitializer
             return;
         }
 
-        $account = $this->findAccount($data['account_number'] ?? null, '');
+        $accountInput = $data['account_number'] ?? null;
+        if ($accountInput === null || $accountInput === '') {
+            $accountInput = match ($type) {
+                TypeTransfer::DEPOSIT => $data['to_account_number'] ?? null,
+                TypeTransfer::WITHDRAWAL => $data['from_account_number'] ?? null,
+                TypeTransfer::TRANSFER => null,
+            };
+        }
+
+        $account = $this->findAccount($accountInput, '');
         $transfer->setCurrency($account->getCurrency())
             ->setReceivedCurrency($account->getCurrency());
 
