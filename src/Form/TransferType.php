@@ -37,6 +37,10 @@ final class TransferType extends AbstractType
                 'data-controller' => 'transfer-type',
                 'data-action' => 'change->transfer-type#change',
             ] : [],
+            'row_attr' => $dynamicTransferForm ? [
+                'data-transfer-type-selector' => 'true',
+                'hidden' => true,
+            ] : [],
         ]);
 
         $builder->addEventListener(FormEvents::PRE_SET_DATA, function (FormEvent $event) use ($dynamicTransferForm): void {

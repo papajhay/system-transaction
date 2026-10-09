@@ -32,6 +32,11 @@ final class TransferTypeTest extends TransactionTestCase
             'transfer-type',
             $form->get('type')->getConfig()->getOption('attr')['data-controller'],
         );
+        self::assertSame(
+            'true',
+            $form->get('type')->getConfig()->getOption('row_attr')['data-transfer-type-selector'],
+        );
+        self::assertTrue($form->get('type')->getConfig()->getOption('row_attr')['hidden']);
     }
 
     #[Test]
