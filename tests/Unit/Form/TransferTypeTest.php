@@ -6,16 +6,15 @@ namespace App\Tests\Unit\Form;
 
 use App\Entity\Transfer;
 use App\Enum\TypeFee;
-use App\Form\TransferType;
 use App\Enum\TypeTransfer;
+use App\Form\TransferType;
+use App\Tests\Feature\Transactions\TransactionTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
-use Symfony\Component\Form\PreloadedExtension;
-use Symfony\Component\Form\Extension\Validator\ValidatorExtension;
-use Symfony\Component\Form\Test\TypeTestCase;
-use Symfony\Component\Validator\Validation;
+use Symfony\Component\Form\FormFactoryInterface;
+use Symfony\Component\Form\FormInterface;
 
-final class TransferTypeTest extends TypeTestCase
+final class TransferTypeTest extends TransactionTestCase
 {
     #[Test]
     #[DataProvider('feeChoices')]
@@ -25,11 +24,11 @@ final class TransferTypeTest extends TypeTestCase
         float $amount,
     ): void {
         $transfer = (new Transfer())->setType(TypeTransfer::DEPOSIT);
-        $form = $this->factory->create(TransferType::class, $transfer);
+        $form = $this->createTransferForm($transfer);
 
         $submittedData = [
             'type' => TypeTransfer::DEPOSIT->value,
-            'account_number' => 'ACC-001',
+            'account_number' => (string) $this->account->getId(),
             'amount' => $amount,
             'description' => '',
             'feeType' => $feeType->value,
@@ -64,7 +63,7 @@ final class TransferTypeTest extends TypeTestCase
             ->setFeeAmount(20.0);
         $transfer->setAmount('100.00');
 
-        $form = $this->factory->create(TransferType::class, $transfer);
+        $form = $this->createTransferForm($transfer);
 
         self::assertTrue($form->has('feeAmount'));
         self::assertTrue($form->has('feeRate'));
@@ -74,14 +73,11 @@ final class TransferTypeTest extends TypeTestCase
     #[Test]
     public function itRejectsNonPositiveAmounts(): void
     {
-        $form = $this->factory->create(
-            TransferType::class,
-            (new Transfer())->setType(TypeTransfer::DEPOSIT),
-        );
+        $form = $this->createTransferForm((new Transfer())->setType(TypeTransfer::DEPOSIT));
 
         $form->submit([
             'type' => TypeTransfer::DEPOSIT->value,
-            'account_number' => 'ACC-001',
+            'account_number' => (string) $this->account->getId(),
             'amount' => 0,
             'description' => '',
             'feeType' => TypeFee::FREE_CHARGED->value,
@@ -94,14 +90,11 @@ final class TransferTypeTest extends TypeTestCase
     #[Test]
     public function itRejectsInvalidFeeValues(): void
     {
-        $form = $this->factory->create(
-            TransferType::class,
-            (new Transfer())->setType(TypeTransfer::DEPOSIT),
-        );
+        $form = $this->createTransferForm((new Transfer())->setType(TypeTransfer::DEPOSIT));
 
         $form->submit([
             'type' => TypeTransfer::DEPOSIT->value,
-            'account_number' => 'ACC-001',
+            'account_number' => (string) $this->account->getId(),
             'amount' => 1000,
             'description' => '',
             'feeType' => TypeFee::FEE_CHARGED_RATE->value,
@@ -120,11 +113,10 @@ final class TransferTypeTest extends TypeTestCase
         yield 'fee rate' => [TypeFee::FEE_CHARGED_RATE, 12.5, 1000.0];
     }
 
-    protected function getExtensions(): array
+    private function createTransferForm(Transfer $transfer): FormInterface
     {
-        return [
-            new PreloadedExtension([new TransferType()], []),
-            new ValidatorExtension(Validation::createValidator()),
-        ];
+        return static::getContainer()
+            ->get(FormFactoryInterface::class)
+            ->create(TransferType::class, $transfer, ['csrf_protection' => false]);
     }
 }

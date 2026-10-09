@@ -168,6 +168,7 @@ final class TransferCrudController extends AbstractCrudController
         AdminContext $context,
     ): FormBuilderInterface {
         $formOptions->set('entityDto', $entityDto);
+        $formOptions->set('dynamic_transfer_form', true);
         $formOptions->setIfNotSet('translation_domain', $context->getI18n()->getTranslationDomain());
         $formOptions->set('attr.class', trim(($formOptions->get('attr.class') ?? '').' ea-new-form'));
         $formOptions->set('attr.id', sprintf('new-%s-form', $entityDto->getName()));
