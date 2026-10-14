@@ -227,7 +227,6 @@ final class TransferTest extends TransactionTestCase
         $this->entityManager->persist(
             (new Fee())
                 ->setType(TypeFee::FEE_CHARGED_FIXED)
-                ->setName('10,000 - 30,000 Ar')
                 ->setAmount(500.0)
         );
         $this->entityManager->flush();
@@ -242,10 +241,11 @@ final class TransferTest extends TransactionTestCase
         $system = $this->entityManager->find(Account::class, $this->systemAccount->getId());
         $fee = $this->entityManager->getRepository(Fee::class)->findOneBy(['transfer' => $this->entityManager->getRepository(Transfer::class)->findOneBy(['token' => $token])]);
 
-        self::assertSame('19400.00', number_format((float) $sender?->getBalance(), 2, '.', ''));
-        self::assertSame('600.15', number_format((float) $system?->getBalance(), 2, '.', ''));
+        self::assertSame('19500.00', number_format((float) $sender?->getBalance(), 2, '.', ''));
+        self::assertSame('500.15', number_format((float) $system?->getBalance(), 2, '.', ''));
         self::assertSame(TypeFee::FEE_CHARGED_FIXED, $fee?->getType());
-        self::assertSame('600.00', number_format((float) $fee?->getAmount(), 2, '.', ''));
+        self::assertNull($fee?->getRate());
+        self::assertSame('500.00', number_format((float) $fee?->getAmount(), 2, '.', ''));
     }
 
     #[Test]
@@ -255,8 +255,7 @@ final class TransferTest extends TransactionTestCase
         $this->entityManager->persist(
             (new Fee())
                 ->setType(TypeFee::FEE_CHARGED_RATE)
-                ->setName('Percentage')
-                ->setRate(0.01)
+                ->setRate(2.5)
                 ->setAmount(0.0)
         );
         $this->entityManager->flush();
@@ -268,7 +267,11 @@ final class TransferTest extends TransactionTestCase
         self::assertResponseStatusCodeSame(201);
         $this->entityManager->clear();
         $sender = $this->entityManager->find(Account::class, $this->account->getId());
-        self::assertSame('998.80', number_format((float) $sender?->getBalance(), 2, '.', ''));
+        $transfer = $this->entityManager->getRepository(Transfer::class)->findOneBy(['token' => $token]);
+        $fee = $this->entityManager->getRepository(Fee::class)->findOneBy(['transfer' => $transfer]);
+        self::assertSame('750.00', number_format((float) $sender?->getBalance(), 2, '.', ''));
+        self::assertSame('2.50', number_format((float) $fee?->getRate(), 2, '.', ''));
+        self::assertSame('250.00', number_format((float) $fee?->getAmount(), 2, '.', ''));
     }
 
     #[Test]
@@ -277,7 +280,6 @@ final class TransferTest extends TransactionTestCase
         $this->entityManager->persist(
             (new Fee())
                 ->setType(TypeFee::FREE_CHARGED)
-                ->setName('No fee')
                 ->setAmount(0.0)
         );
         $this->entityManager->flush();

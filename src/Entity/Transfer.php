@@ -199,6 +199,26 @@ class Transfer
         return $this->fees;
     }
 
+    public function addFee(Fee $fee): self
+    {
+        if (!$this->fees->contains($fee)) {
+            $this->fees->add($fee);
+        }
+
+        if ($fee->getTransfer() !== $this) {
+            $fee->setTransfer($this);
+        }
+
+        return $this;
+    }
+
+    public function removeFee(Fee $fee): self
+    {
+        $this->fees->removeElement($fee);
+
+        return $this;
+    }
+
     /**
      * A processed transfer currently has one fee record. Keeping the
      * collection mapping above reflects the existing database cardinality.

@@ -25,9 +25,6 @@ class Fee
     #[ORM\Column(type: Types::STRING, enumType: TypeFee::class, options: ['default' => 'free charged'])]
     private TypeFee $type = TypeFee::FREE_CHARGED;
 
-    #[ORM\Column(type: Types::STRING, length: 255, nullable: true)]
-    private ?string $name = null;
-
     #[ORM\Column(type: Types::FLOAT, nullable: true)]
     private ?float $rate = null;
 
@@ -52,7 +49,20 @@ class Fee
 
     public function setTransfer(?Transfer $transfer): self
     {
+        if ($this->transfer === $transfer) {
+            return $this;
+        }
+
+        $previousTransfer = $this->transfer;
         $this->transfer = $transfer;
+
+        if ($previousTransfer !== null) {
+            $previousTransfer->removeFee($this);
+        }
+
+        if ($transfer !== null) {
+            $transfer->addFee($this);
+        }
 
         return $this;
     }
@@ -65,18 +75,6 @@ class Fee
     public function setType(TypeFee $type): self
     {
         $this->type = $type;
-
-        return $this;
-    }
-
-    public function getName(): ?string
-    {
-        return $this->name;
-    }
-
-    public function setName(?string $name): self
-    {
-        $this->name = $name;
 
         return $this;
     }

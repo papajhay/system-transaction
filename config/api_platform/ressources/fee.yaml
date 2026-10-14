@@ -15,9 +15,6 @@ properties:
         type:
             readable: true
             writable: false
-        name:
-            readable: true
-            writable: false
         rate:
             readable: true
             writable: false
