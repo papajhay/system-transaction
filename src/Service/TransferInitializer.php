@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\Account;
+use App\Entity\Fee;
 use App\Entity\Transfer;
 use App\Enum\StatusTransfer;
 use App\Enum\TypeFee;
@@ -51,6 +52,15 @@ final class TransferInitializer
             ->setExchangeRate('1.0000000000')
             ->setCreatedAt($now)
             ->setUpdatedAt($now);
+
+        $fee = $transfer->getFee() ?? new Fee();
+        $fee->setTransfer($transfer)
+            ->setType($feeType)
+            ->setRate($feeType === TypeFee::FEE_CHARGED_RATE ? $feeRate : null)
+            ->setAmount($feeAmount)
+            ->setCreatedAt($fee->getCreatedAt() ?? $now)
+            ->setUpdatedAt($now);
+        $this->entityManager->persist($fee);
 
         if ($type === TypeTransfer::TRANSFER) {
             $sender = $this->findAccount($data['from_account_number'] ?? null, 'source');

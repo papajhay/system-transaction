@@ -27,7 +27,6 @@ use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
-use EasyCorp\Bundle\EasyAdminBundle\Field\TextField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\NumericFilter;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -72,9 +71,6 @@ final class FeeCrudController extends BaseCrudController
     {
         yield AssociationField::new('transfer', 'Transfer')
             ->setFormTypeOption('choice_label', 'reference')
-            ->setRequired(false);
-
-        yield TextField::new('name', 'Name')
             ->setRequired(false);
 
         yield NumberField::new('rate', 'Rate (%)')
@@ -158,7 +154,7 @@ final class FeeCrudController extends BaseCrudController
             fputcsv($output, [
                 'id',
                 'transfer',
-                'name',
+                'type',
                 'rate',
                 'amount',
                 'created_at',
@@ -170,7 +166,7 @@ final class FeeCrudController extends BaseCrudController
                 fputcsv($output, [
                     $fee->getId(),
                     $fee->getTransfer()?->getReference() ?? '',
-                    $fee->getName() ?? '',
+                    $fee->getType()->value,
                     $fee->getRate(),
                     $fee->getAmount(),
                     $fee->getCreatedAt()?->format(DateTimeInterface::ATOM) ?? '',
