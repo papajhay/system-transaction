@@ -21,7 +21,10 @@ use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
 final class DepositExecutor
 {
-    public function __construct(private readonly EntityManagerInterface $entityManager)
+    public function __construct(
+        private readonly EntityManagerInterface $entityManager,
+        private readonly FeeCalculator $feeCalculator,
+    )
     {
     }
 
@@ -64,7 +67,7 @@ final class DepositExecutor
             }
             $this->entityManager->lock($account, LockMode::PESSIMISTIC_WRITE);
 
-            $feeDetails = $this->feeDetails($amountCents);
+            $feeDetails = $this->feeCalculator->calculate($amountCents, $transfer->getFee());
             $feeCents = $feeDetails['amount'];
             $creditedCents = $amountCents - $feeCents;
             if ($creditedCents < 0) {
@@ -116,24 +119,6 @@ final class DepositExecutor
                 'fee' => $this->money($feeCents),
             ];
         });
-    }
-
-    /** @return array{amount: int, type: TypeFee, rate: ?float} */
-    private function feeDetails(int $amountCents): array
-    {
-        $configurations = $this->entityManager->getRepository(Fee::class)->findBy(['transfer' => null], ['id' => 'ASC']);
-        foreach ($configurations as $configuration) {
-            if ($configuration->getType() === TypeFee::FEE_CHARGED_FIXED) {
-                return ['amount' => $this->cents((string) $configuration->getAmount()), 'type' => TypeFee::FEE_CHARGED_FIXED, 'rate' => null];
-            }
-        }
-        foreach ($configurations as $configuration) {
-            if ($configuration->getType() === TypeFee::FEE_CHARGED_RATE) {
-                $rate = $configuration->getRate() ?? 0.01;
-                return ['amount' => (int) round($amountCents * $rate / 100, 0, PHP_ROUND_HALF_UP), 'type' => TypeFee::FEE_CHARGED_RATE, 'rate' => $rate];
-            }
-        }
-        return ['amount' => 0, 'type' => TypeFee::FREE_CHARGED, 'rate' => null];
     }
 
     private function operation(Account $account, TypeOperation $type, int $amount, int $before, int $after, Transfer $transfer, DateTimeImmutable $now): void
