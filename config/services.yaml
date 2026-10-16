@@ -9,6 +9,9 @@
 parameters:
     exchange_rates_api_url: '%env(EXCHANGE_RATES_API_URL)%'
     exchange_rates_api_key: '%env(EXCHANGE_RATES_API_KEY)%'
+    # Applied only to legacy transfers with no persisted/global fee configuration.
+    # It is represented and persisted as a percentage fee, never as a fixed fee.
+    transfer_default_fee_rate: 10.0
 
 services:
     # default configuration for services in *this* file
@@ -25,6 +28,10 @@ services:
         arguments:
             $apiUrl: '%exchange_rates_api_url%'
             $apiKey: '%exchange_rates_api_key%'
+
+    App\Service\FeeCalculator:
+        arguments:
+            $legacyTransferDefaultRate: '%transfer_default_fee_rate%'
 
     transfer.search_filter:
         parent: 'api_platform.doctrine.orm.search_filter'

@@ -4,9 +4,11 @@ namespace App\State;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Dto\{ExecuteMultiTransferInput,ExecuteTransferInput,InitMultiTransferInput,InitTransferInput,TransactionResponse};
-use App\Entity\{Account,Conversion,Fee,Operation as LedgerOperation,Transfer};
-use App\Enum\{StatusTransfer,TypeAccount,TypeFee,TypeOperation,TypeTransfer};
+use App\Entity\{Account,Transfer};
+use App\Enum\{StatusTransfer,TypeTransfer};
 use App\Service\OnDemandExchangeRateService;
+use App\Service\FeeCalculator;
+use App\Service\TransferExecutor;
 use DateTimeImmutable;
 use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
@@ -17,7 +19,9 @@ final class TransferProcessor implements ProcessorInterface
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
-        private readonly OnDemandExchangeRateService $exchangeRates
+        private readonly OnDemandExchangeRateService $exchangeRates,
+        private readonly FeeCalculator $feeCalculator,
+        private readonly TransferExecutor $transferExecutor,
     ) {}
  
     public function process(mixed $data,Operation $operation,array $uriVariables=[],array $context=[]): TransactionResponse 
@@ -53,7 +57,9 @@ final class TransferProcessor implements ProcessorInterface
         $receiver=$this->account($to);
         $value=round((float)$amount,2,PHP_ROUND_HALF_UP);
         $cross = $sender->getCurrency()?->getId() !== $receiver->getCurrency()?->getId();
-        $fee = $cross ? 0.0 : $this->feeDetails($value)['amount'];
+        $fee = $cross
+            ? 0.0
+            : $this->feeCalculator->calculate((int) round($value * 100), null, true)['amount'] / 100;
         $debitAmount=$this->money($value+$fee);
         if(bccomp(bcsub($sender->getBalance(),$debitAmount,2),'0.00',2)<0)throw new BadRequestHttpException('Insufficient balance');
         $rate=$this->rate($sender,$receiver);
@@ -103,15 +109,15 @@ final class TransferProcessor implements ProcessorInterface
     
     private function execute(string $token): TransactionResponse 
     { 
-        $t=$this->entityManager->getConnection()->transactional(function()use($token):Transfer
-        {
-            $t=$this->findPending($token,true);
-            $this->apply($t);
-            $this->entityManager->flush();
-            
-            return $t;
-        });
-    
+        // Preserve the established API behavior for same-account transfers;
+        // the dedicated command applies stricter validation by default.
+        $result = $this->transferExecutor->execute($token, true);
+        $t = $this->entityManager->getRepository(Transfer::class)->findOneBy(['token' => $result['token']]);
+
+        if (!$t instanceof Transfer) {
+            throw new \LogicException('Executed transfer could not be reloaded.');
+        }
+
         return new TransactionResponse(201,'Transfer executed successfully',$this->output($t)); 
     }
     
@@ -148,107 +154,12 @@ final class TransferProcessor implements ProcessorInterface
         return $t;
     }
     
-    private function apply(Transfer $t):void 
-    { 
-        $sender=$t->getSenderAccount();
-        $receiver=$t->getReceiverAccount();
-        if(!$sender||!$receiver)throw new BadRequestHttpException('The transfer accounts do not exist.');
-        $this->entityManager->lock($sender,LockMode::PESSIMISTIC_WRITE);$this->entityManager->lock($receiver,LockMode::PESSIMISTIC_WRITE);
-        $amount=(float)$t->getAmount();
-        $cross=$sender->getCurrency()?->getId()!==$receiver->getCurrency()?->getId();
-        $feeDetails = $cross ? $this->freeFeeDetails() : $this->feeDetails($amount);
-        $fee = $feeDetails['amount'];
-        $t->setFeeType($feeDetails['type'])
-            ->setFeeRate($feeDetails['rate'] ?? 0.0)
-            ->setFeeAmount($fee);
-        $debitAmount=$this->money($amount+$fee);
-        $balanceAfterDebit=bcsub($sender->getBalance(),$debitAmount,2);
-        if(bccomp($balanceAfterDebit,'0.00',2)<0)throw new BadRequestHttpException('Insufficient balance');
-            $now=new DateTimeImmutable();
-            if(!$cross){$system=$this->system($sender);
-            $this->entityManager->lock($system,LockMode::PESSIMISTIC_WRITE);
-            $this->move($sender,$receiver,$amount,$fee,$t,$now);
-            $this->credit($system,$fee,$t,$now);
-        }else{
-            $source=$this->system($sender);
-            $target=$this->system($receiver);
-            $this->entityManager->lock($source,LockMode::PESSIMISTIC_WRITE);
-            $this->entityManager->lock($target,LockMode::PESSIMISTIC_WRITE);
-            $converted=(float)$t->getReceivedAmount();
-            $this->move($sender,$source,$amount,0,$t,$now);
-            $this->move($source,$target,$amount,0,$t,$now);
-            $this->move($target,$receiver,$converted,0,$t,$now);
-            $this->entityManager->persist(
-                (new Conversion())
-                      ->setTransfer($t)
-                      ->setFromCurrency($sender->getCurrency())
-                      ->setToCurrency($receiver->getCurrency())
-                      ->setExchangeRate(number_format((float)$t->getExchangeRate(),6,'.',''))
-                      ->setSourceAmount($this->money($amount))
-                      ->setTargetAmount($this->money($converted))
-                      ->setCreatedAt($now)->setUpdatedAt($now));
-            }
-
-        $storedFee = $t->getFee() ?? new Fee();
-        $storedFee->setTransfer($t)
-            ->setType($feeDetails['type'])
-            ->setRate($feeDetails['rate'])
-            ->setAmount($fee)
-            ->setCreatedAt($storedFee->getCreatedAt() ?? $now)
-            ->setUpdatedAt($now);
-        $this->entityManager->persist($storedFee);
-        $t->markCompleted();
-    }
-    
-    private function move(Account $from,Account $to,float $amount,float $fee,Transfer $t,DateTimeImmutable $now):void
+    private function apply(Transfer $t): void
     {
-        $this->debit($from,$amount+$fee,$t,$now);
-        $this->credit($to,$amount,$t,$now);
+        // Multi-transfer execution uses the same fee, account, locking, and
+        // ledger rules as the dedicated transfer command.
+        $this->transferExecutor->apply($t, true);
     }
-    
-    private function debit(Account $a,float $amount,Transfer $t,DateTimeImmutable $now):void
-    {
-        $before=$a->getBalance();
-        $a->setBalance(bcsub($before,$this->money($amount),2))
-          ->setUpdatedAt($now);
-        $this->operation($a,TypeOperation::DEBIT,$amount,$before,$a->getBalance(),$t,$now);
-    }
-    
-    private function credit(Account $a,float $amount,Transfer $t,DateTimeImmutable $now):void
-    {
-        $before=$a->getBalance();
-        $a->setBalance($this->money((float)$before+$amount))
-          ->setUpdatedAt($now);
-        $this->operation($a,TypeOperation::CREDIT,$amount,$before,$a->getBalance(),$t,$now);
-    }
-    
-    private function operation(Account $a,TypeOperation $type,float $amount,string $before,string $after,Transfer $t,DateTimeImmutable $now):void
-    {
-        $this->entityManager->persist(
-             (new LedgerOperation())
-                  ->setAccount($a)
-                  ->setTransfer($t)
-                  ->setType($type)
-                  ->setAmount(number_format($amount,6,'.',''))
-                  ->setBalanceBefore($before)
-                  ->setBalanceAfter($after)
-                  ->setCreatedAt($now)
-                  ->setUpdatedAt($now));
-   }
-  
-    private function system(Account $a):Account
-    {
-        $s=$this->entityManager->getRepository(Account::class)->findOneBy(
-            [
-              'currency'=>$a->getCurrency(),
-              'type'=>TypeAccount::SYSTEM
-            ]
-        );
-        if(!$s)throw new BadRequestHttpException('System account does not exist.');
-        
-        return $s;
-    }
-    
     
     private function account(?string $number):Account
     {
@@ -256,68 +167,6 @@ final class TransferProcessor implements ProcessorInterface
         if(!$a)throw new BadRequestHttpException('The account does not exist.');
         
         return $a;
-    }
-    
-    /** @return array{amount: float, type: TypeFee, rate: ?float} */
-    private function feeDetails(float $amount): array
-    {
-        /** @var list<Fee> $configurations */
-        $configurations = $this->entityManager
-            ->getRepository(Fee::class)
-            ->findBy(['transfer' => null], ['id' => 'ASC']);
-
-        // Keep the fee that was already in effect when no fee configuration
-        // exists. This preserves existing installations while allowing the
-        // new fee configuration records to take precedence.
-        if ($configurations === []) {
-            return [
-                'amount' => round($amount * 0.1, 2, PHP_ROUND_HALF_UP),
-                'type' => TypeFee::FEE_CHARGED_FIXED,
-                'rate' => null,
-            ];
-        }
-
-        foreach ($configurations as $configuration) {
-            if (
-                $configuration->getType() === TypeFee::FEE_CHARGED_FIXED
-            ) {
-                return [
-                    'amount' => round($configuration->getAmount(), 2, PHP_ROUND_HALF_UP),
-                    'type' => TypeFee::FEE_CHARGED_FIXED,
-                    'rate' => null,
-                ];
-            }
-        }
-
-        foreach ($configurations as $configuration) {
-            if ($configuration->getType() === TypeFee::FEE_CHARGED_RATE) {
-                $rate = $configuration->getRate() ?? 0.01;
-
-                return [
-                    'amount' => round($amount * $rate / 100, 2, PHP_ROUND_HALF_UP),
-                    'type' => TypeFee::FEE_CHARGED_RATE,
-                    'rate' => $rate,
-                ];
-            }
-        }
-
-        foreach ($configurations as $configuration) {
-            if ($configuration->getType() === TypeFee::FREE_CHARGED) {
-                return $this->freeFeeDetails($configuration);
-            }
-        }
-
-        return $this->freeFeeDetails();
-    }
-
-    /** @return array{amount: float, type: TypeFee, rate: ?float} */
-    private function freeFeeDetails(?Fee $configuration = null): array
-    {
-        return [
-            'amount' => 0.0,
-            'type' => TypeFee::FREE_CHARGED,
-            'rate' => null,
-        ];
     }
     
     private function money(float $amount):string
