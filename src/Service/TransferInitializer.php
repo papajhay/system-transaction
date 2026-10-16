@@ -26,12 +26,22 @@ final class TransferInitializer
         $amount = $this->amount($data['amount'] ?? null);
         $description = $data['description'] ?? null;
         $description = $description === '' ? null : (is_string($description) ? $description : null);
-        $feeType = is_string($data['feeType'] ?? null)
-            ? TypeFee::tryFrom($data['feeType']) ?? TypeFee::FREE_CHARGED
-            : TypeFee::FREE_CHARGED;
-        $feeRate = $feeType === TypeFee::FEE_CHARGED_RATE
-            ? $transfer->getFeeRate()
-            : 0.0;
+        $submittedFeeType = $data['feeType'] ?? null;
+        if ($submittedFeeType === null) {
+            $feeType = TypeFee::FREE_CHARGED;
+        } elseif (is_string($submittedFeeType) && TypeFee::tryFrom($submittedFeeType) instanceof TypeFee) {
+            $feeType = TypeFee::from($submittedFeeType);
+        } else {
+            throw new \InvalidArgumentException('The fee type is invalid.');
+        }
+
+        $feeRate = $feeType === TypeFee::FEE_CHARGED_RATE ? $transfer->getFeeRate() : 0.0;
+        if ($feeType === TypeFee::FEE_CHARGED_FIXED && (!is_finite($transfer->getFeeAmount()) || $transfer->getFeeAmount() <= 0)) {
+            throw new \InvalidArgumentException('The fixed fee amount must be greater than zero.');
+        }
+        if ($feeType === TypeFee::FEE_CHARGED_RATE && (!is_finite($feeRate) || $feeRate < 0 || $feeRate > 100)) {
+            throw new \InvalidArgumentException('The fee rate must be between 0 and 100.');
+        }
         $feeAmount = match ($feeType) {
             TypeFee::FEE_CHARGED_FIXED => $transfer->getFeeAmount(),
             TypeFee::FEE_CHARGED_RATE => round((float) $amount * $feeRate / 100, 2, PHP_ROUND_HALF_UP),
