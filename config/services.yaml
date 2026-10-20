@@ -12,6 +12,7 @@ parameters:
     # Applied only to legacy transfers with no persisted/global fee configuration.
     # It is represented and persisted as a percentage fee, never as a fixed fee.
     transfer_default_fee_rate: 10.0
+    pending_transfer_threshold_seconds: '%env(int:TRANSFER_PENDING_THRESHOLD_SECONDS)%'
 
 services:
     # default configuration for services in *this* file
@@ -32,6 +33,10 @@ services:
     App\Service\FeeCalculator:
         arguments:
             $legacyTransferDefaultRate: '%transfer_default_fee_rate%'
+
+    App\Service\PendingTransferMonitor:
+        arguments:
+            $thresholdSeconds: '%pending_transfer_threshold_seconds%'
 
     transfer.search_filter:
         parent: 'api_platform.doctrine.orm.search_filter'
