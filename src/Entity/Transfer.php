@@ -7,13 +7,14 @@ namespace App\Entity;
 use App\Enum\StatusTransfer;
 use App\Enum\TypeFee;
 use App\Enum\TypeTransfer;
+use App\Repository\TransferRepository;
 use DateTimeImmutable;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-#[ORM\Entity]
+#[ORM\Entity(repositoryClass: TransferRepository::class)]
 #[ORM\Table(name: 'transfer')]
 class Transfer
 {
