@@ -81,12 +81,7 @@ final class TransferExecutor
         $crossCurrency = $senderCurrency->getId() !== $receiverCurrency->getId();
         $feeDetails = $crossCurrency
             ? ['amount' => 0, 'type' => TypeFee::FREE_CHARGED, 'rate' => null]
-            : $this->feeCalculator->calculate(
-                $amountCents,
-                $transfer->getFee(),
-                true,
-                $transfer->getFeeType(),
-            );
+            : $this->feeCalculator->calculateForTransfer($amountCents, $transfer, true);
         $feeCents = $feeDetails['amount'];
         $debitCents = $amountCents + $feeCents;
 

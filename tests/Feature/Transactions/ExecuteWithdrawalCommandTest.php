@@ -13,12 +13,36 @@ use App\Enum\StatusTransfer;
 use App\Enum\TypeFee;
 use App\Enum\TypeTransfer;
 use App\Service\WithdrawalExecutor;
+use App\Service\TransferExecutionDelay;
+use App\Tests\Double\RecordingTransferExecutionDelay;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\Console\Tester\CommandTester;
 
 final class ExecuteWithdrawalCommandTest extends TransactionTestCase
 {
+    #[Test]
+    public function validatesSelectionAndDelayOptions(): void
+    {
+        self::assertSame(2, $this->runCommand(null, ['--reference' => 'REF', '--token' => 'TOKEN'])->getStatusCode());
+        self::assertSame(2, $this->runCommand(null, ['--reference' => 'REF', '--time' => '1.5'])->getStatusCode());
+    }
+
+    #[Test]
+    public function waitsBeforeExecutingWhenTimeIsProvided(): void
+    {
+        $transfer = $this->pendingWithdrawal('CMD-WIT-DELAY', '10.00')
+            ->setFeeType(TypeFee::FEE_CHARGED_FIXED)
+            ->setFeeAmount(27.0);
+        $this->entityManager->flush();
+        $delay = new RecordingTransferExecutionDelay();
+
+        $tester = $this->runCommand(null, ['--token' => $transfer->getToken(), '--time' => '7'], $delay);
+        self::assertSame(0, $tester->getStatusCode());
+        self::assertStringContainsString('fee 27.00', $tester->getDisplay());
+        self::assertSame([7], $delay->delays);
+    }
+
     #[Test]
     public function executesByReferenceAndDebitsAmountPlusFixedFee(): void
     {
@@ -167,11 +191,15 @@ final class ExecuteWithdrawalCommandTest extends TransactionTestCase
         self::assertSame([], $this->entityManager->getRepository(Operation::class)->findBy(['transfer' => $storedTransfer]));
     }
 
-    private function runCommand(string $identifier): CommandTester
+    private function runCommand(?string $identifier = null, array $options = [], ?TransferExecutionDelay $delay = null): CommandTester
     {
-        $command = new \App\Command\ExecuteWithdrawalCommand(static::getContainer()->get(WithdrawalExecutor::class));
+        $command = new \App\Command\ExecuteWithdrawalCommand(static::getContainer()->get(WithdrawalExecutor::class), $delay);
         $tester = new CommandTester($command);
-        $tester->execute(['token-or-reference' => $identifier]);
+        $input = $options;
+        if ($identifier !== null) {
+            $input['token-or-reference'] = $identifier;
+        }
+        $tester->execute($input);
         return $tester;
     }
 

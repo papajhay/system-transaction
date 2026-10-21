@@ -67,12 +67,7 @@ final class DepositExecutor
             }
             $this->entityManager->lock($account, LockMode::PESSIMISTIC_WRITE);
 
-            $feeDetails = $this->feeCalculator->calculate(
-                $amountCents,
-                $transfer->getFee(),
-                false,
-                $transfer->getFeeType(),
-            );
+            $feeDetails = $this->feeCalculator->calculateForTransfer($amountCents, $transfer);
             $feeCents = $feeDetails['amount'];
             $creditedCents = $amountCents - $feeCents;
             if ($creditedCents < 0) {
