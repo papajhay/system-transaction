@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Service;
 
 use App\Entity\Fee;
+use App\Entity\Transfer;
 use App\Enum\TypeFee;
 use Symfony\Component\DependencyInjection\Attribute\Autowire;
 use Doctrine\ORM\EntityManagerInterface;
@@ -67,6 +68,37 @@ final class FeeCalculator
         }
 
         return ['amount' => 0, 'type' => TypeFee::FREE_CHARGED, 'rate' => null];
+    }
+
+    /** @return array{amount: int, type: TypeFee, rate: ?float} */
+    public function calculateForTransfer(
+        int $amountCents,
+        Transfer $transfer,
+        bool $useLegacyTransferDefault = false,
+    ): array {
+        $type = $transfer->getFeeType();
+
+        // Pending transfers persist their selected fee on Transfer. Prefer
+        // that configuration when it is complete, even if an old or missing
+        // Fee row is still associated with the transfer.
+        if ($type === TypeFee::FEE_CHARGED_FIXED && $transfer->getFeeAmount() > 0) {
+            return [
+                'amount' => $this->fixedAmount($transfer->getFeeAmount()),
+                'type' => TypeFee::FEE_CHARGED_FIXED,
+                'rate' => null,
+            ];
+        }
+
+        if ($type === TypeFee::FEE_CHARGED_RATE && $transfer->getFeeRate() >= 0) {
+            return $this->percentage($transfer->getFeeRate(), $amountCents);
+        }
+
+        return $this->calculate(
+            $amountCents,
+            $transfer->getFee(),
+            $useLegacyTransferDefault,
+            $type,
+        );
     }
 
     /** @return array{amount: int, type: TypeFee, rate: ?float} */

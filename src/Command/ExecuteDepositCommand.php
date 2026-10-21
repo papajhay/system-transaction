@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Service\DepositExecutor;
+use App\Service\NativeTransferExecutionDelay;
+use App\Service\TransferExecutionDelay;
+use App\Service\TransferExecutionOptions;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -12,31 +15,38 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Throwable;
+use InvalidArgumentException;
 
-#[AsCommand(name: 'app:deposit:execute', description: 'Execute a pending deposit by token or reference.')]
+#[AsCommand(name: 'app:deposit:execute', description: 'Execute one pending deposit by reference or token, optionally after a delay.')]
 final class ExecuteDepositCommand extends Command
 {
-    public function __construct(private readonly DepositExecutor $depositExecutor)
+    public function __construct(
+        private readonly DepositExecutor $depositExecutor,
+        ?TransferExecutionDelay $delay = null,
+    )
     {
+        $this->delay = $delay ?? new NativeTransferExecutionDelay();
         parent::__construct();
     }
 
+    private readonly TransferExecutionDelay $delay;
+
     protected function configure(): void
     {
-        $this->addArgument('token-or-reference', InputArgument::REQUIRED, 'The deposit token or reference.');
+        $this->addArgument('token-or-reference', InputArgument::OPTIONAL, 'Legacy positional deposit token or reference.');
+        TransferExecutionOptions::addOptions($this, 'deposit');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $identifier = trim((string) $input->getArgument('token-or-reference'));
-        if ($identifier === '') {
-            $io->error('A deposit token or reference is required.');
-            return Command::INVALID;
-        }
-
         try {
-            $result = $this->depositExecutor->execute($identifier);
+            $options = TransferExecutionOptions::resolve($input, 'deposit');
+            $this->delay->wait($options['delay']);
+            $result = $this->depositExecutor->execute($options['identifier']);
+        } catch (InvalidArgumentException $exception) {
+            $io->error($exception->getMessage());
+            return Command::INVALID;
         } catch (Throwable $exception) {
             $io->error($exception->getMessage());
             return Command::FAILURE;

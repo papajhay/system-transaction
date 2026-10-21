@@ -72,12 +72,7 @@ final class WithdrawalExecutor
                 throw new BadRequestHttpException('The withdrawal source account does not match the transfer currency.');
             }
 
-            $feeDetails = $this->feeCalculator->calculate(
-                $amountCents,
-                $transfer->getFee(),
-                false,
-                $transfer->getFeeType(),
-            );
+            $feeDetails = $this->feeCalculator->calculateForTransfer($amountCents, $transfer);
             $feeCents = $feeDetails['amount'];
             $debitCents = $amountCents + $feeCents;
             $this->entityManager->lock($account, LockMode::PESSIMISTIC_WRITE);

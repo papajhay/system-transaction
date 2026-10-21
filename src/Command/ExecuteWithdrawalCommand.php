@@ -5,6 +5,9 @@ declare(strict_types=1);
 namespace App\Command;
 
 use App\Service\WithdrawalExecutor;
+use App\Service\NativeTransferExecutionDelay;
+use App\Service\TransferExecutionDelay;
+use App\Service\TransferExecutionOptions;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Input\InputArgument;
@@ -12,31 +15,38 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Throwable;
+use InvalidArgumentException;
 
-#[AsCommand(name: 'app:withdrawal:execute', description: 'Execute a pending withdrawal by token or reference.')]
+#[AsCommand(name: 'app:withdrawal:execute', description: 'Execute one pending withdrawal by reference or token, optionally after a delay.')]
 final class ExecuteWithdrawalCommand extends Command
 {
-    public function __construct(private readonly WithdrawalExecutor $withdrawalExecutor)
+    public function __construct(
+        private readonly WithdrawalExecutor $withdrawalExecutor,
+        ?TransferExecutionDelay $delay = null,
+    )
     {
+        $this->delay = $delay ?? new NativeTransferExecutionDelay();
         parent::__construct();
     }
 
+    private readonly TransferExecutionDelay $delay;
+
     protected function configure(): void
     {
-        $this->addArgument('token-or-reference', InputArgument::REQUIRED, 'The withdrawal token or reference.');
+        $this->addArgument('token-or-reference', InputArgument::OPTIONAL, 'Legacy positional withdrawal token or reference.');
+        TransferExecutionOptions::addOptions($this, 'withdrawal');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
-        $identifier = trim((string) $input->getArgument('token-or-reference'));
-        if ($identifier === '') {
-            $io->error('A withdrawal token or reference is required.');
-            return Command::INVALID;
-        }
-
         try {
-            $result = $this->withdrawalExecutor->execute($identifier);
+            $options = TransferExecutionOptions::resolve($input, 'withdrawal');
+            $this->delay->wait($options['delay']);
+            $result = $this->withdrawalExecutor->execute($options['identifier']);
+        } catch (InvalidArgumentException $exception) {
+            $io->error($exception->getMessage());
+            return Command::INVALID;
         } catch (Throwable $exception) {
             $io->error($exception->getMessage());
             return Command::FAILURE;

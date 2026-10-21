@@ -25,6 +25,7 @@ use EasyCorp\Bundle\EasyAdminBundle\Dto\EntityDto;
 use EasyCorp\Bundle\EasyAdminBundle\Dto\SearchDto;
 use EasyCorp\Bundle\EasyAdminBundle\Factory\FilterFactory;
 use EasyCorp\Bundle\EasyAdminBundle\Field\AssociationField;
+use EasyCorp\Bundle\EasyAdminBundle\Field\ChoiceField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\DateTimeField;
 use EasyCorp\Bundle\EasyAdminBundle\Field\NumberField;
 use EasyCorp\Bundle\EasyAdminBundle\Filter\EntityFilter;
@@ -72,6 +73,14 @@ final class FeeCrudController extends BaseCrudController
         yield AssociationField::new('transfer', 'Transfer')
             ->setFormTypeOption('choice_label', 'reference')
             ->setRequired(false);
+
+        yield ChoiceField::new('type', 'Type')
+            ->setChoices([
+                'Fixed fee' => TypeFee::FEE_CHARGED_FIXED,
+                'Rate fee' => TypeFee::FEE_CHARGED_RATE,
+                'Free charged' => TypeFee::FREE_CHARGED,
+            ])
+            ->setRequired(true);
 
         yield NumberField::new('rate', 'Rate (%)')
             ->setNumDecimals(4)

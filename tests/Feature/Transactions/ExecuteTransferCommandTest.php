@@ -14,6 +14,8 @@ use App\Enum\TypeAccount;
 use App\Enum\TypeFee;
 use App\Enum\TypeTransfer;
 use App\Service\TransferExecutor;
+use App\Service\TransferExecutionDelay;
+use App\Tests\Double\RecordingTransferExecutionDelay;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\Test;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -21,22 +23,45 @@ use Symfony\Component\Console\Tester\CommandTester;
 final class ExecuteTransferCommandTest extends TransactionTestCase
 {
     #[Test]
+    public function validatesSelectionAndDelayOptions(): void
+    {
+        self::assertSame(2, $this->runCommand(null, ['--reference' => 'REF', '--token' => 'TOKEN'])->getStatusCode());
+        self::assertSame(2, $this->runCommand(null, ['--reference' => 'REF', '--time' => ''])->getStatusCode());
+    }
+
+    #[Test]
+    public function waitsBeforeExecutingWhenTimeIsProvided(): void
+    {
+        $receiver = $this->account('CMD-TRF-DELAY');
+        $transfer = $this->pendingTransfer($receiver, '10.00', 'CMD-TRF-DELAY-REF')
+            ->setFeeType(TypeFee::FEE_CHARGED_FIXED)
+            ->setFeeAmount(27.0);
+        $this->entityManager->flush();
+        $delay = new RecordingTransferExecutionDelay();
+
+        $tester = $this->runCommand(null, ['--reference' => $transfer->getReference(), '--time' => '7'], $delay);
+        self::assertSame(0, $tester->getStatusCode());
+        self::assertStringContainsString('fee 27.00', $tester->getDisplay());
+        self::assertSame([7], $delay->delays);
+    }
+
+    #[Test]
     public function executesTransferByReferenceAndReportsFixedFee(): void
     {
         $receiver = $this->account('CMD-TRF-FIXED');
         $transfer = $this->pendingTransfer($receiver, '50.00', 'CMD-TRF-FIXED-REF');
-        $this->entityManager->persist((new Fee())->setTransfer($transfer)->setType(TypeFee::FEE_CHARGED_FIXED)->setAmount(10.0));
+        $this->entityManager->persist((new Fee())->setTransfer($transfer)->setType(TypeFee::FEE_CHARGED_FIXED)->setAmount(17.0));
         $this->entityManager->flush();
 
         $tester = $this->runCommand($transfer->getReference());
 
         self::assertSame(0, $tester->getStatusCode());
         self::assertStringContainsString('amount 50.00', $tester->getDisplay());
-        self::assertStringContainsString('fee 10.00', $tester->getDisplay());
+        self::assertStringContainsString('fee 17.00', $tester->getDisplay());
         $this->entityManager->clear();
-        self::assertSame('90.00', $this->balance($this->account));
+        self::assertSame('83.00', $this->balance($this->account));
         self::assertSame('50.00', $this->balance($receiver));
-        self::assertSame('10.15', $this->balance($this->systemAccount));
+        self::assertSame('17.15', $this->balance($this->systemAccount));
     }
 
     #[Test]
@@ -179,11 +204,15 @@ final class ExecuteTransferCommandTest extends TransactionTestCase
         self::assertSame('10.00', $this->balance($receiver));
     }
 
-    private function runCommand(string $identifier): CommandTester
+    private function runCommand(?string $identifier = null, array $options = [], ?TransferExecutionDelay $delay = null): CommandTester
     {
-        $command = new \App\Command\ExecuteTransferCommand(static::getContainer()->get(TransferExecutor::class));
+        $command = new \App\Command\ExecuteTransferCommand(static::getContainer()->get(TransferExecutor::class), $delay);
         $tester = new CommandTester($command);
-        $tester->execute(['token-or-reference' => $identifier]);
+        $input = $options;
+        if ($identifier !== null) {
+            $input['token-or-reference'] = $identifier;
+        }
+        $tester->execute($input);
         return $tester;
     }
 
