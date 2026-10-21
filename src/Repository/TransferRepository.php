@@ -31,4 +31,21 @@ class TransferRepository extends ServiceEntityRepository
             ->getQuery()
             ->getResult();
     }
+
+    /**
+     * @return list<Transfer>
+     */
+    public function findCompletedBetween(DateTimeImmutable $start, DateTimeImmutable $end): array
+    {
+        return $this->createQueryBuilder('transfer')
+            ->andWhere('transfer.status = :status')
+            ->andWhere('transfer.processedAt >= :start')
+            ->andWhere('transfer.processedAt < :end')
+            ->setParameter('status', StatusTransfer::COMPLETED)
+            ->setParameter('start', $start)
+            ->setParameter('end', $end)
+            ->orderBy('transfer.processedAt', 'ASC')
+            ->getQuery()
+            ->getResult();
+    }
 }

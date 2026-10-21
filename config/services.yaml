@@ -13,6 +13,12 @@ parameters:
     # It is represented and persisted as a percentage fee, never as a fixed fee.
     transfer_default_fee_rate: 10.0
     pending_transfer_threshold_seconds: '%env(int:TRANSFER_PENDING_THRESHOLD_SECONDS)%'
+    pending_transfer_alert_recipients: '%env(string:PENDING_TRANSFER_ALERT_RECIPIENTS)%'
+    pending_transfer_alert_cooldown_seconds: '%env(int:PENDING_TRANSFER_ALERT_COOLDOWN_SECONDS)%'
+    daily_report_output_directory: '%env(string:REPORT_OUTPUT_DIRECTORY)%'
+    daily_report_timezone: '%env(string:REPORT_TIMEZONE)%'
+    daily_report_time: '%env(string:DAILY_REPORT_TIME)%'
+    report_from_address: '%env(string:REPORT_FROM_ADDRESS)%'
 
 services:
     # default configuration for services in *this* file
@@ -37,6 +43,31 @@ services:
     App\Service\PendingTransferMonitor:
         arguments:
             $thresholdSeconds: '%pending_transfer_threshold_seconds%'
+
+    App\Service\PendingTransferAlertService:
+        arguments:
+            $recipients: '%pending_transfer_alert_recipients%'
+            $fromAddress: '%report_from_address%'
+            $cooldownSeconds: '%pending_transfer_alert_cooldown_seconds%'
+
+    App\Service\DailyTransactionReportGenerator:
+        arguments:
+            $timezone: '%daily_report_timezone%'
+
+    App\Service\DailyTransactionReportWriter:
+        arguments:
+            $projectDirectory: '%kernel.project_dir%'
+            $outputDirectory: '%daily_report_output_directory%'
+            $timezone: '%daily_report_timezone%'
+
+    App\MessageHandler\GenerateDailyTransactionReportMessageHandler:
+        arguments:
+            $timezone: '%daily_report_timezone%'
+
+    App\Scheduler\PendingTransferScheduleProvider:
+        arguments:
+            $dailyReportTime: '%daily_report_time%'
+            $timezone: '%daily_report_timezone%'
 
     transfer.search_filter:
         parent: 'api_platform.doctrine.orm.search_filter'

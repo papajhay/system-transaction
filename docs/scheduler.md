@@ -1,6 +1,11 @@
 # Pending transfer Scheduler
 
-This project uses Symfony Scheduler 7.4 to run a read-only pending-transfer monitor. Every five minutes it finds transfers whose status is still `pending` and whose `createdAt` is older than `TRANSFER_PENDING_THRESHOLD_SECONDS`. It logs the count and never executes transfers, changes statuses, or changes account balances.
+This project uses Symfony Scheduler 7.4 for two read-only tasks:
+
+- Every five minutes, it finds transfers whose status is still `pending` and whose `createdAt` is older than `TRANSFER_PENDING_THRESHOLD_SECONDS`.
+- Every day at `DAILY_REPORT_TIME`, it writes a CSV summary for the previous calendar day in `REPORT_TIMEZONE`.
+
+Neither task executes transfers, changes statuses, changes account balances, or modifies historical transactions.
 
 ## Installation and configuration
 
@@ -10,13 +15,21 @@ Install dependencies with:
 composer install
 ```
 
-The required dependency is `symfony/scheduler: 7.4.*`; Messenger is already provided by `symfony/doctrine-messenger`. The default threshold is 3,600 seconds (one hour):
+The required dependencies are `symfony/scheduler: 7.4.*` and `dragonmantank/cron-expression` for the daily cron trigger; Messenger and Mailer are already installed. The default threshold is 3,600 seconds (one hour):
 
 ```dotenv
 TRANSFER_PENDING_THRESHOLD_SECONDS=3600
+PENDING_TRANSFER_ALERT_RECIPIENTS=ops@example.com
+PENDING_TRANSFER_ALERT_COOLDOWN_SECONDS=86400
+REPORT_FROM_ADDRESS=transactions@example.com
+REPORT_OUTPUT_DIRECTORY=var/reports
+REPORT_TIMEZONE=UTC
+DAILY_REPORT_TIME=02:00
 ```
 
-Set this to a positive integer in the environment used by the worker. The service validates the value during construction and refuses zero or negative values.
+Set the threshold and cooldown to positive integers. Empty `PENDING_TRANSFER_ALERT_RECIPIENTS` disables email alerts while monitoring and logging continue. Recipients are comma-separated. The default alert policy sends one alert for a transfer, then suppresses that transfer for 24 hours while it remains unresolved; after the cooldown, it can be reported again. A failed email is logged and is not marked as delivered, so a later run can retry it.
+
+Reports are grouped by transfer type and source currency. Amounts are the persisted transfer amounts and fees are the persisted `Transfer.feeAmount`, counted once per completed transfer. Cross-currency transfers are not converted or combined with another currency. Reports are written outside the public directory with `0600` file permissions, using safe names such as `transactions_2026-10-20.csv`.
 
 ## Run locally
 
@@ -24,13 +37,20 @@ The provider is named `default`, so Symfony 7.4 generates the `scheduler_default
 
 ```bash
 php bin/console debug:messenger
+php bin/console debug:scheduler default
 php bin/console messenger:consume scheduler_default -vv
 ```
 
 The worker uses the existing Messenger bus and database transport dependencies. It is independent from the existing `app:deposit:execute`, `app:withdrawal:execute`, and `app:transfer:execute` commands, which remain manual and unchanged.
 
+To run the relevant tests:
+
+```bash
+php bin/phpunit tests/Unit/Scheduler
+```
+
 ## Production operation
 
-Run one dedicated worker process per application deployment and supervise it with systemd, Supervisor, or the platform’s process manager. Configure a graceful restart/deploy hook so the worker receives a stop signal and is restarted with the new release. Monitor stderr/application logs and process health; Scheduler failures are logged and contained by the handler so a failed read does not prevent later scheduled runs.
+Run one dedicated worker process per application deployment and supervise it with systemd, Supervisor, or the platform’s process manager. Configure a graceful restart/deploy hook so the worker receives a stop signal and is restarted with the new release. Monitor stderr/application logs and process health; monitoring, alert delivery, and report failures are logged and contained by their handlers so a failed run does not prevent later scheduled runs.
 
 Do not run this worker as a replacement for transaction execution. It is intentionally an alerting/monitoring task only.
