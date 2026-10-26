@@ -46,6 +46,12 @@ services:
         arguments:
             $thresholdSeconds: '%pending_transfer_threshold_seconds%'
 
+    App\Service\PendingTransferAutoExecutor:
+        arguments:
+            $depositExecutor: '@App\Service\DepositExecutor'
+            $withdrawalExecutor: '@App\Service\WithdrawalExecutor'
+            $transferExecutor: '@App\Service\TransferExecutor'
+
     App\Service\PendingTransferAlertService:
         arguments:
             $recipients: '%pending_transfer_alert_recipients%'

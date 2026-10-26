@@ -35,8 +35,10 @@ final class PendingTransferScheduleProvider implements ScheduleProviderInterface
     public function getSchedule(): Schedule
     {
         return (new Schedule())->add(
-            RecurringMessage::every(300, new MonitorPendingTransfersMessage()),
-            RecurringMessage::cron($this->dailyReportExpression, new GenerateDailyTransactionReportMessage(), $this->timezone),
+            // Surveillance et tentative d'exécution automatique des transferts pending toutes les 30 secondes.
+            RecurringMessage::every(10, new MonitorPendingTransfersMessage()),
+            // Rapport quotidien : conserve l'heure configurée.
+            RecurringMessage::cron("$this->dailyReportExpression", new GenerateDailyTransactionReportMessage(), $this->timezone),
         );
     }
 }

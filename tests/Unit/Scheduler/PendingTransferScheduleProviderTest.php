@@ -13,7 +13,7 @@ use Symfony\Component\Scheduler\Generator\MessageContext;
 
 final class PendingTransferScheduleProviderTest extends TestCase
 {
-    public function testScheduleRunsEveryFiveMinutes(): void
+    public function testScheduleRunsEveryTenSeconds(): void
     {
         $schedule = (new PendingTransferScheduleProvider('02:00', 'UTC'))->getSchedule();
         $recurringMessage = $schedule
@@ -21,8 +21,8 @@ final class PendingTransferScheduleProviderTest extends TestCase
         $trigger = $recurringMessage->getTrigger();
         $run = new DateTimeImmutable('2026-01-01 12:00:00');
 
-        self::assertSame('every 300 seconds', (string) $trigger);
-        self::assertSame('2026-01-01 12:05:00', $trigger->getNextRunDate($run)?->format('Y-m-d H:i:s'));
+        self::assertSame('every 10 seconds', (string) $trigger);
+        self::assertSame('2026-01-01 12:00:10', $trigger->getNextRunDate($run)?->format('Y-m-d H:i:s'));
         $messages = $recurringMessage->getMessages(new MessageContext(
             'default',
             $recurringMessage->getId(),

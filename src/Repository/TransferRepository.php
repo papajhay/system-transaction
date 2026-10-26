@@ -24,7 +24,7 @@ class TransferRepository extends ServiceEntityRepository
     {
         return $this->createQueryBuilder('transfer')
             ->andWhere('transfer.status = :status')
-            ->andWhere('transfer.createdAt < :cutoff')
+            ->andWhere('transfer.createdAt <= :cutoff')
             ->setParameter('status', StatusTransfer::PENDING)
             ->setParameter('cutoff', $cutoff)
             ->orderBy('transfer.createdAt', 'ASC')

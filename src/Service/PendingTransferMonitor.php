@@ -9,7 +9,9 @@ use App\Repository\TransferRepository;
 use DateInterval;
 use DateTimeImmutable;
 use InvalidArgumentException;
+use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
+use Symfony\Component\Clock\NativeClock;
 
 class PendingTransferMonitor
 {
@@ -17,18 +19,22 @@ class PendingTransferMonitor
         private readonly TransferRepository $transferRepository,
         private readonly LoggerInterface $logger,
         private readonly int $thresholdSeconds,
+        ?ClockInterface $clock = null,
     ) {
+        $this->clock = $clock ?? new NativeClock();
         if ($thresholdSeconds <= 0) {
             throw new InvalidArgumentException('TRANSFER_PENDING_THRESHOLD_SECONDS must be greater than zero.');
         }
     }
+
+    private readonly ClockInterface $clock;
 
     /**
      * @return list<PendingTransferInfo>
      */
     public function monitor(?DateTimeImmutable $now = null): array
     {
-        $now ??= new DateTimeImmutable();
+        $now ??= DateTimeImmutable::createFromInterface($this->clock->now());
         $cutoff = $now->sub(new DateInterval(sprintf('PT%dS', $this->thresholdSeconds)));
         $transfers = $this->transferRepository->findPendingOlderThan($cutoff);
         $overdue = [];
