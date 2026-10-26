@@ -19,7 +19,7 @@ use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
-final class DepositExecutor
+final class DepositExecutor implements PendingTransferExecutionService
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,

@@ -13,31 +13,44 @@ use DateTimeImmutable;
 use InvalidArgumentException;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use Symfony\Component\Clock\MockClock;
 
 final class PendingTransferMonitorTest extends TestCase
 {
-    public function testItSelectsPendingTransfersOlderThanTheConfiguredThreshold(): void
+    public function testItDoesNotSelectTransfersBeforeTheConfiguredThreshold(): void
     {
         $repository = $this->createMock(TransferRepository::class);
-        $now = new DateTimeImmutable('2026-01-01 12:00:00');
+        $now = new DateTimeImmutable('2026-01-01 12:00:59');
         $repository->expects(self::once())
             ->method('findPendingOlderThan')
-            ->with(new DateTimeImmutable('2026-01-01 11:00:00'))
+            ->with(new DateTimeImmutable('2026-01-01 11:59:59'))
+            ->willReturn([]);
+
+        self::assertSame([], (new PendingTransferMonitor($repository, new NullLogger(), 60, new MockClock($now)))->monitor());
+    }
+
+    public function testItSelectsTransfersAtTheConfiguredThreshold(): void
+    {
+        $repository = $this->createMock(TransferRepository::class);
+        $now = new DateTimeImmutable('2026-01-01 12:01:00');
+        $repository->expects(self::once())
+            ->method('findPendingOlderThan')
+            ->with(new DateTimeImmutable('2026-01-01 12:00:00'))
             ->willReturn([(new Transfer())
                 ->setReference('REF-001')
                 ->setType(TypeTransfer::TRANSFER)
                 ->setStatus(StatusTransfer::PENDING)
-                ->setCreatedAt(new DateTimeImmutable('2026-01-01 11:00:00'))]);
+                ->setCreatedAt(new DateTimeImmutable('2026-01-01 12:00:00'))]);
 
-        $monitor = new PendingTransferMonitor($repository, new NullLogger(), 3600);
+        $monitor = new PendingTransferMonitor($repository, new NullLogger(), 60, new MockClock($now));
 
-        $overdue = $monitor->monitor($now);
+        $overdue = $monitor->monitor();
 
         self::assertCount(1, $overdue);
         self::assertSame('pending', $overdue[0]->status->value);
         self::assertSame(TypeTransfer::TRANSFER, $overdue[0]->type);
-        self::assertSame(3600, $overdue[0]->elapsedSeconds);
-        self::assertSame(3600, $overdue[0]->thresholdSeconds);
+        self::assertSame(60, $overdue[0]->elapsedSeconds);
+        self::assertSame(60, $overdue[0]->thresholdSeconds);
     }
 
     public function testItReportsAnEmptyResultWithoutOverdueTransfers(): void
@@ -45,7 +58,7 @@ final class PendingTransferMonitorTest extends TestCase
         $repository = $this->createMock(TransferRepository::class);
         $repository->method('findPendingOlderThan')->willReturn([]);
 
-        self::assertSame([], (new PendingTransferMonitor($repository, new NullLogger(), 3600))
+        self::assertSame([], (new PendingTransferMonitor($repository, new NullLogger(), 60))
             ->monitor(new DateTimeImmutable('2026-01-01 12:00:00')));
     }
 

@@ -19,7 +19,7 @@ use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 
-final class WithdrawalExecutor
+final class WithdrawalExecutor implements PendingTransferExecutionService
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,

@@ -1,11 +1,11 @@
 # Pending transfer Scheduler
 
-This project uses Symfony Scheduler 7.4 for two read-only tasks:
+This project uses Symfony Scheduler 7.4 for scheduled transaction execution and reporting:
 
-- Every five minutes, it finds transfers whose status is still `pending` and whose `createdAt` is older than `TRANSFER_PENDING_THRESHOLD_SECONDS`.
+- Every 10 seconds, it finds transfers whose status is still `pending` and whose `createdAt` is at least `TRANSFER_PENDING_THRESHOLD_SECONDS` seconds old, then dispatches each eligible transfer to its existing execution service.
 - Every day at `DAILY_REPORT_TIME`, it writes a CSV summary for the previous calendar day in `REPORT_TIMEZONE`.
 
-Neither task executes transfers, changes statuses, changes account balances, or modifies historical transactions.
+The automatic execution reuses the existing deposit, withdrawal, and account-transfer execution services. Their status, expiration, account, fee, balance, transaction, locking, and duplicate-execution checks remain authoritative.
 
 ## Installation and configuration
 
@@ -15,10 +15,10 @@ Install dependencies with:
 composer install
 ```
 
-The required dependencies are `symfony/scheduler: 7.4.*` and `dragonmantank/cron-expression` for the daily cron trigger; Messenger and Mailer are already installed. The default threshold is 3,600 seconds (one hour):
+The required dependencies are `symfony/scheduler: 7.4.*` and `dragonmantank/cron-expression` for the daily cron trigger; Messenger and Mailer are already installed. The default threshold is 60 seconds:
 
 ```dotenv
-TRANSFER_PENDING_THRESHOLD_SECONDS=3600
+TRANSFER_PENDING_THRESHOLD_SECONDS=60
 PENDING_TRANSFER_ALERT_RECIPIENTS=ops@example.com
 PENDING_TRANSFER_ALERT_COOLDOWN_SECONDS=86400
 REPORT_FROM_ADDRESS=transactions@example.com
@@ -41,7 +41,7 @@ php bin/console debug:scheduler default
 php bin/console messenger:consume scheduler_default -vv
 ```
 
-The worker uses the existing Messenger bus and database transport dependencies. It is independent from the existing `app:deposit:execute`, `app:withdrawal:execute`, and `app:transfer:execute` commands, which remain manual and unchanged.
+The worker uses the existing Messenger bus and database transport dependencies. It is independent from the existing `app:deposit:execute`, `app:withdrawal:execute`, and `app:transfer:execute` commands, which remain available for manual execution.
 
 To run the relevant tests:
 
@@ -53,4 +53,4 @@ php bin/phpunit tests/Unit/Scheduler
 
 Run one dedicated worker process per application deployment and supervise it with systemd, Supervisor, or the platform’s process manager. Configure a graceful restart/deploy hook so the worker receives a stop signal and is restarted with the new release. Monitor stderr/application logs and process health; monitoring, alert delivery, and report failures are logged and contained by their handlers so a failed run does not prevent later scheduled runs.
 
-Do not run this worker as a replacement for transaction execution. It is intentionally an alerting/monitoring task only.
+The worker is the automatic transaction-execution path for eligible pending transfers; run one dedicated `scheduler_default` worker per application deployment.
