@@ -6,6 +6,7 @@ namespace App\Service;
 
 use App\Dto\PendingTransferInfo;
 use App\Entity\Transfer;
+use App\Enum\StatusTransfer;
 use App\Enum\TypeTransfer;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\Persistence\ManagerRegistry;
@@ -43,6 +44,14 @@ final class PendingTransferAutoExecutor
                     throw new \RuntimeException('Pending transfer no longer exists.');
                 }
 
+                // A monitor message may be redelivered after another worker has
+                // completed this transfer. The execution services also enforce
+                // this inside their transaction, but skip it here when the
+                // current database state already proves it is ineligible.
+                if ($transfer->getStatus() !== StatusTransfer::PENDING) {
+                    continue;
+                }
+
                 match ($pendingTransfer->type) {
                     TypeTransfer::DEPOSIT => $this->depositExecutor->execute($transfer->getToken()),
                     TypeTransfer::WITHDRAWAL => $this->withdrawalExecutor->execute($transfer->getToken()),
@@ -57,6 +66,7 @@ final class PendingTransferAutoExecutor
                     'exception_class' => $exception::class,
                     'exception_message' => $this->diagnosticMessage($exception),
                     'entity_manager_open' => $this->isEntityManagerOpen(),
+                    'exception_trace' => $exception->getTraceAsString(),
                 ]);
 
                 $this->resetClosedEntityManager();

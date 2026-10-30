@@ -18,12 +18,15 @@ use DateTimeImmutable;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Component\Messenger\MessageBusInterface;
+use App\Message\ExecuteTransferMessage;
 
 final class WithdrawalProcessor implements ProcessorInterface
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly WithdrawalExecutor $withdrawalExecutor,
+        private readonly MessageBusInterface $messageBus,
     )
     {
     }
@@ -72,6 +75,7 @@ final class WithdrawalProcessor implements ProcessorInterface
 
         $this->entityManager->persist($transfer);
         $this->entityManager->flush();
+        $this->messageBus->dispatch(new ExecuteTransferMessage($transfer->getReference()));
 
         return new TransactionResponse(201, 'Withdrawal initialized successfully', [
             'token' => $transfer->getToken(),

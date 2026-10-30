@@ -6,9 +6,19 @@ framework:
             # https://symfony.com/doc/current/messenger.html#transport-configuration
             async:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    exchange:
+                        name: messages
+                        type: direct
+                        default_publish_routing_key: messages
+                    queues:
+                        messages:
+                            binding_keys: [messages]
                 retry_strategy:
                     max_retries: 3
+                    delay: 1000
                     multiplier: 2
+                    max_delay: 30000
             failed: 'doctrine://default?queue_name=failed'
             # sync: 'sync://'
 
@@ -21,6 +31,10 @@ framework:
             Symfony\Component\Mailer\Messenger\SendEmailMessage: async
             Symfony\Component\Notifier\Message\ChatMessage: async
             Symfony\Component\Notifier\Message\SmsMessage: async
+
+            App\Message\MonitorPendingTransfersMessage: async
+            App\Message\GenerateDailyTransactionReportMessage: async
+            App\Message\ExecuteTransferMessage: async
 
             # Route your messages to the transports
             # 'App\Message\YourMessage': async

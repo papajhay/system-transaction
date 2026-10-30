@@ -8,6 +8,8 @@ use App\Message\MonitorPendingTransfersMessage;
 use App\Service\PendingTransferAlertService;
 use App\Service\PendingTransferAutoExecutor;
 use App\Service\PendingTransferMonitor;
+use App\Message\ExecuteTransferMessage;
+use Symfony\Component\Messenger\MessageBusInterface;
 use Psr\Log\LoggerInterface;
 use Symfony\Component\Messenger\Attribute\AsMessageHandler;
 use Throwable;
@@ -18,6 +20,7 @@ final class MonitorPendingTransfersMessageHandler
     public function __construct(
         private readonly PendingTransferMonitor $monitor,
         private readonly LoggerInterface $logger,
+        private readonly ?MessageBusInterface $messageBus = null,
         private readonly ?PendingTransferAutoExecutor $autoExecutor = null,
         private readonly ?PendingTransferAlertService $alertService = null,
     ) {
@@ -27,8 +30,15 @@ final class MonitorPendingTransfersMessageHandler
     {
         try {
             $overdue = $this->monitor->monitor();
-            $failed = $this->autoExecutor?->execute($overdue) ?? $overdue;
-            $this->alertService?->notify($failed);
+            if ($this->messageBus !== null) {
+                foreach ($overdue as $pendingTransfer) {
+                    $this->messageBus->dispatch(new ExecuteTransferMessage($pendingTransfer->reference));
+                }
+            } elseif ($this->autoExecutor !== null) {
+                // Backward-compatible fallback for direct service wiring.
+                $overdue = $this->autoExecutor->execute($overdue);
+            }
+            $this->alertService?->notify($overdue);
         } catch (Throwable $exception) {
             // One transient failure must not stop future scheduled runs.
             $this->logger->error('Pending transfer monitoring failed; the next scheduled run will continue.', [
