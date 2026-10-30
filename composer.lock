@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "2b2a83e72468f04ccfb40dad8aeffafa",
+        "content-hash": "d8c9703e8d7d7afdcf005c6a96d6461b",
     "packages": [
         {
             "name": "api-platform/doctrine-common",
@@ -3505,6 +3505,79 @@
             "time": "2024-09-11T13:17:53+00:00"
         },
         {
+            "name": "symfony/amqp-messenger",
+            "version": "v7.4.21",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/symfony/amqp-messenger.git",
+                "reference": "2ac723f206b4655e9b1c456a47972b682c90eed8"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/symfony/amqp-messenger/zipball/2ac723f206b4655e9b1c456a47972b682c90eed8",
+                "reference": "2ac723f206b4655e9b1c456a47972b682c90eed8",
+                "shasum": ""
+            },
+            "require": {
+                "ext-amqp": "*",
+                "php": ">=8.2",
+                "symfony/messenger": "^7.3|^8.0"
+            },
+            "require-dev": {
+                "symfony/event-dispatcher": "^6.4|^7.0|^8.0",
+                "symfony/process": "^6.4|^7.0|^8.0",
+                "symfony/property-access": "^6.4|^7.0|^8.0",
+                "symfony/serializer": "^6.4|^7.0|^8.0"
+            },
+            "type": "symfony-messenger-bridge",
+            "autoload": {
+                "psr-4": {
+                    "Symfony\\Component\\Messenger\\Bridge\\Amqp\\": ""
+                },
+                "exclude-from-classmap": [
+                    "/Tests/"
+                ]
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "Fabien Potencier",
+                    "email": "fabien@symfony.com"
+                },
+                {
+                    "name": "Symfony Community",
+                    "homepage": "https://symfony.com/contributors"
+                }
+            ],
+            "description": "Symfony AMQP extension Messenger Bridge",
+            "homepage": "https://symfony.com",
+            "support": {
+                "source": "https://github.com/symfony/amqp-messenger/tree/v7.4.21"
+            },
+            "funding": [
+                {
+                    "url": "https://symfony.com/sponsor",
+                    "type": "custom"
+                },
+                {
+                    "url": "https://github.com/fabpot",
+                    "type": "github"
+                },
+                {
+                    "url": "https://github.com/nicolas-grekas",
+                    "type": "github"
+                },
+                {
+                    "url": "https://tidelift.com/funding/github/packagist/symfony/symfony",
+                    "type": "tidelift"
+                }
+            ],
+            "time": "2026-10-13T05:48:33+00:00"
+        },
+        {
             "name": "symfony/asset",
             "version": "v7.4.8",
             "source": {
@@ -4257,16 +4330,16 @@
         },
         {
             "name": "symfony/doctrine-bridge",
-            "version": "v7.4.16",
+            "version": "v7.4.17",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/doctrine-bridge.git",
-                "reference": "f69be90a9cc5ebf210414faa5c69a31b8b5a370f"
+                "reference": "577bded9ac6dbd6ec83fd269362dd85ef7c82bda"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/doctrine-bridge/zipball/f69be90a9cc5ebf210414faa5c69a31b8b5a370f",
-                "reference": "f69be90a9cc5ebf210414faa5c69a31b8b5a370f",
+                "url": "https://api.github.com/repos/symfony/doctrine-bridge/zipball/577bded9ac6dbd6ec83fd269362dd85ef7c82bda",
+                "reference": "577bded9ac6dbd6ec83fd269362dd85ef7c82bda",
                 "shasum": ""
             },
             "require": {
@@ -4293,7 +4366,7 @@
                 "symfony/property-info": "<6.4",
                 "symfony/security-bundle": "<6.4",
                 "symfony/security-core": "<6.4",
-                "symfony/validator": "<7.4"
+                "symfony/validator": "<7.4.17|>=8.0,<8.1.5"
             },
             "require-dev": {
                 "doctrine/collections": "^1.8|^2.0",
@@ -4346,7 +4419,7 @@
             "description": "Provides integration for Doctrine with various Symfony components",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/doctrine-bridge/tree/v7.4.16"
+                "source": "https://github.com/symfony/doctrine-bridge/tree/v7.4.17"
             },
             "funding": [
                 {
@@ -4366,7 +4439,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-08-06T07:14:37+00:00"
+            "time": "2026-08-21T19:38:51+00:00"
         },
         {
             "name": "symfony/doctrine-messenger",
@@ -9382,16 +9455,16 @@
         },
         {
             "name": "symfony/validator",
-            "version": "v7.4.16",
+            "version": "v7.4.17",
             "source": {
                 "type": "git",
                 "url": "https://github.com/symfony/validator.git",
-                "reference": "3aee77358ab14090337183657e554668bc94ab4a"
+                "reference": "b1cbb758c005fbe0d7b2b8d1561869d318628a10"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/symfony/validator/zipball/3aee77358ab14090337183657e554668bc94ab4a",
-                "reference": "3aee77358ab14090337183657e554668bc94ab4a",
+                "url": "https://api.github.com/repos/symfony/validator/zipball/b1cbb758c005fbe0d7b2b8d1561869d318628a10",
+                "reference": "b1cbb758c005fbe0d7b2b8d1561869d318628a10",
                 "shasum": ""
             },
             "require": {
@@ -9462,7 +9535,7 @@
             "description": "Provides tools to validate values",
             "homepage": "https://symfony.com",
             "support": {
-                "source": "https://github.com/symfony/validator/tree/v7.4.16"
+                "source": "https://github.com/symfony/validator/tree/v7.4.17"
             },
             "funding": [
                 {
@@ -9482,7 +9555,7 @@
                     "type": "tidelift"
                 }
             ],
-            "time": "2026-08-06T09:41:15+00:00"
+            "time": "2026-08-22T09:04:42+00:00"
         },
         {
             "name": "symfony/var-dumper",

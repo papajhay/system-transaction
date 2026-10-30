@@ -17,12 +17,15 @@ use Doctrine\ORM\EntityManagerInterface;
 use App\Service\DepositExecutor;
 use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Component\Messenger\MessageBusInterface;
+use App\Message\ExecuteTransferMessage;
 
 final class DepositProcessor implements ProcessorInterface
 {
     public function __construct(
         private readonly EntityManagerInterface $entityManager,
         private readonly DepositExecutor $depositExecutor,
+        private readonly MessageBusInterface $messageBus,
     ) {
     }
 
@@ -81,6 +84,7 @@ final class DepositProcessor implements ProcessorInterface
 
         $this->entityManager->persist($transfer);
         $this->entityManager->flush();
+        $this->messageBus->dispatch(new ExecuteTransferMessage($transfer->getReference()));
 
         return new TransactionResponse(
             201,

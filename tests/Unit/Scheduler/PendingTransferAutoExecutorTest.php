@@ -71,6 +71,26 @@ final class PendingTransferAutoExecutorTest extends TestCase
         ]);
     }
 
+    public function testItSkipsACompletedTransferOnRedelivery(): void
+    {
+        $registry = $this->createMock(ManagerRegistry::class);
+        $completed = (new Transfer())
+            ->setToken('token')
+            ->setStatus(StatusTransfer::COMPLETED);
+        $registry->method('getRepository')->willReturn($this->createTransferRepository($completed));
+        $registry->method('getManagerForClass')->willReturn($this->openEntityManager());
+        $deposit = $this->createMock(PendingTransferExecutionService::class);
+        $deposit->expects(self::never())->method('execute');
+
+        (new PendingTransferAutoExecutor(
+            $registry,
+            $deposit,
+            $this->createMock(PendingTransferExecutionService::class),
+            $this->createMock(PendingTransferExecutionService::class),
+            new NullLogger(),
+        ))->execute([$this->pending(TypeTransfer::DEPOSIT, 'DEP-1')]);
+    }
+
     public function testItLogsTheBusinessFailureAndContinues(): void
     {
         $registry = $this->createMock(ManagerRegistry::class);

@@ -14,6 +14,8 @@ use Doctrine\DBAL\LockMode;
 use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Uid\Uuid;
+use Symfony\Component\Messenger\MessageBusInterface;
+use App\Message\ExecuteTransferMessage;
 
 final class TransferProcessor implements ProcessorInterface
 {
@@ -22,6 +24,7 @@ final class TransferProcessor implements ProcessorInterface
         private readonly OnDemandExchangeRateService $exchangeRates,
         private readonly FeeCalculator $feeCalculator,
         private readonly TransferExecutor $transferExecutor,
+        private readonly MessageBusInterface $messageBus,
     ) {}
  
     public function process(mixed $data,Operation $operation,array $uriVariables=[],array $context=[]): TransactionResponse 
@@ -42,6 +45,7 @@ final class TransferProcessor implements ProcessorInterface
             $t=$this->create($input->from_account_number,$input->to_account_number,
             $input->amount,$input->description);
             $this->entityManager->flush();return $t;});
+            $this->messageBus->dispatch(new ExecuteTransferMessage($t->getReference()));
             return new TransactionResponse(
                 201,'Transfer initialized successfully',
                 [
@@ -103,6 +107,9 @@ final class TransferProcessor implements ProcessorInterface
        
        return $created;
        });
+       foreach ($created as $item) {
+           $this->messageBus->dispatch(new ExecuteTransferMessage($item['reference']));
+       }
        
        return new TransactionResponse(201,'Multi-transfer initialized successfully',$created); 
     }

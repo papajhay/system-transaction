@@ -5,10 +5,16 @@ declare(strict_types=1);
 namespace App\Tests\Unit\Scheduler;
 
 use App\Message\MonitorPendingTransfersMessage;
+use App\Message\ExecuteTransferMessage;
 use App\MessageHandler\MonitorPendingTransfersMessageHandler;
+use App\Dto\PendingTransferInfo;
+use App\Enum\StatusTransfer;
+use App\Enum\TypeTransfer;
 use App\Service\PendingTransferMonitor;
+use Symfony\Component\Messenger\MessageBusInterface;
 use PHPUnit\Framework\TestCase;
 use Psr\Log\NullLogger;
+use DateTimeImmutable;
 
 final class MonitorPendingTransfersMessageHandlerTest extends TestCase
 {
@@ -32,5 +38,25 @@ final class MonitorPendingTransfersMessageHandlerTest extends TestCase
         );
 
         self::assertTrue(true);
+    }
+
+    public function testHandlerDispatchesOverdueTransfersToTheExecutionBus(): void
+    {
+        $monitor = $this->createMock(PendingTransferMonitor::class);
+        $monitor->expects(self::once())->method('monitor')->willReturn([
+            new PendingTransferInfo(
+                'TRF-1', TypeTransfer::TRANSFER, StatusTransfer::PENDING,
+                new DateTimeImmutable('-61 seconds'), 61, 60,
+            ),
+        ]);
+        $bus = $this->createMock(MessageBusInterface::class);
+        $bus->expects(self::once())
+            ->method('dispatch')
+            ->with(self::callback(static fn (object $message): bool =>
+                $message instanceof ExecuteTransferMessage && $message->reference === 'TRF-1'));
+
+        (new MonitorPendingTransfersMessageHandler($monitor, new NullLogger(), $bus))(
+            new MonitorPendingTransfersMessage(),
+        );
     }
 }
