@@ -39,7 +39,7 @@ class DailyTransactionReportWriter
         }
 
         try {
-            \fputcsv($handle, ['period_start', 'period_end', 'generated_at', 'type', 'currency', 'count', 'total_amount', 'total_fees']);
+            \fputcsv($handle, ['period_start', 'period_end', 'generated_at', 'type', 'currency', 'count', 'total_amount', 'total_fees'], ',', '"', '\\');
             foreach ($report->rows as $row) {
                 \fputcsv($handle, [
                     $report->periodStart->format(DATE_ATOM),
@@ -50,7 +50,7 @@ class DailyTransactionReportWriter
                     $row['count'],
                     $row['total_amount'],
                     $row['total_fees'],
-                ]);
+                ], ',', '"', '\\');
             }
         } finally {
             fclose($handle);

@@ -20,6 +20,7 @@ final class OnDemandExchangeRateServiceTest extends KernelTestCase
 
     protected function setUp(): void
     {
+        self::ensureKernelShutdown();
         parent::setUp();
 
         if (!extension_loaded('pdo_sqlite')) {

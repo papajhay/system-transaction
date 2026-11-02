@@ -18,6 +18,7 @@ final class LoginTest extends WebTestCase
 
     protected function setUp(): void
     {
+        self::ensureKernelShutdown();
         parent::setUp();
 
         if (!extension_loaded('pdo_sqlite')) {

@@ -33,6 +33,9 @@ abstract class TransactionTestCase extends WebTestCase
 
     protected function setUp(): void
     {
+        // Each test rebuilds the SQLite schema; do not retain a kernel/connection
+        // from a preceding test class while that happens.
+        self::ensureKernelShutdown();
         parent::setUp();
 
         if (!extension_loaded('pdo_sqlite')) {
