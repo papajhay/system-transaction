@@ -19,7 +19,8 @@ use Doctrine\ORM\EntityManagerInterface;
 use Symfony\Component\HttpKernel\Exception\BadRequestHttpException;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Messenger\MessageBusInterface;
-use App\Message\ExecuteTransferMessage;
+use App\Message\ExecuteWithdrawalMessage;
+use Psr\Log\LoggerInterface;
 
 final class WithdrawalProcessor implements ProcessorInterface
 {
@@ -27,6 +28,7 @@ final class WithdrawalProcessor implements ProcessorInterface
         private readonly EntityManagerInterface $entityManager,
         private readonly WithdrawalExecutor $withdrawalExecutor,
         private readonly MessageBusInterface $messageBus,
+        private readonly LoggerInterface $logger,
     )
     {
     }
@@ -75,7 +77,17 @@ final class WithdrawalProcessor implements ProcessorInterface
 
         $this->entityManager->persist($transfer);
         $this->entityManager->flush();
-        $this->messageBus->dispatch(new ExecuteTransferMessage($transfer->getReference()));
+        $this->logger->info('withdrawal.created', [
+            'reference' => $transfer->getReference(),
+            'status' => $transfer->getStatus()->value,
+            'created_at' => $now->format(DateTimeImmutable::ATOM),
+        ]);
+        $this->messageBus->dispatch(new ExecuteWithdrawalMessage($transfer->getReference()));
+        $this->logger->info('withdrawal.message_dispatched', [
+            'reference' => $transfer->getReference(),
+            'transport' => 'withdrawal',
+            'dispatched_at' => (new DateTimeImmutable())->format(DateTimeImmutable::ATOM),
+        ]);
 
         return new TransactionResponse(201, 'Withdrawal initialized successfully', [
             'token' => $transfer->getToken(),

@@ -8,6 +8,8 @@ use App\Entity\Transfer;
 use App\Enum\StatusTransfer;
 use App\Enum\TypeOperation;
 use App\Enum\TypeTransfer;
+use App\Message\ExecuteWithdrawalMessage;
+use App\MessageHandler\ExecuteWithdrawalMessageHandler;
 use PHPUnit\Framework\Attributes\Test;
 
 final class WithdrawalTest extends TransactionTestCase
@@ -64,6 +66,24 @@ final class WithdrawalTest extends TransactionTestCase
     }
 
     #[Test]
+    public function dispatchedPendingWithdrawalIsCompletedByTheMessengerHandler(): void
+    {
+        $this->client->jsonRequest('POST', '/api/transactions/init-withdrawal', [
+            'account_number' => $this->account->getAccountNumber(),
+            'amount' => 10.00,
+        ]);
+        $reference = $this->jsonResponse()['data']['reference'];
+
+        $transport = static::getContainer()->get('messenger.transport.withdrawal');
+        $envelope = $this->withdrawalEnvelope($transport->getSent(), $reference);
+        static::getContainer()->get(ExecuteWithdrawalMessageHandler::class)($envelope->getMessage());
+
+        $this->entityManager->clear();
+        $withdrawal = $this->entityManager->getRepository(Transfer::class)->findOneBy(['reference' => $reference]);
+        self::assertSame(StatusTransfer::COMPLETED, $withdrawal?->getStatus());
+    }
+
+    #[Test]
     public function testGuestCannotInitializeAWithdrawal(): void
     {
         $this->client->setServerParameter('HTTP_AUTHORIZATION', '');
@@ -113,5 +133,18 @@ final class WithdrawalTest extends TransactionTestCase
     private function jsonResponse(): array
     {
         return json_decode($this->client->getResponse()->getContent(), true, 512, JSON_THROW_ON_ERROR);
+    }
+
+    /** @param list<\Symfony\Component\Messenger\Envelope> $envelopes */
+    private function withdrawalEnvelope(array $envelopes, string $reference): \Symfony\Component\Messenger\Envelope
+    {
+        foreach (array_reverse($envelopes) as $envelope) {
+            if (($message = $envelope->getMessage()) instanceof ExecuteWithdrawalMessage
+                && $message->reference === $reference) {
+                return $envelope;
+            }
+        }
+
+        self::fail('Withdrawal message was not dispatched.');
     }
 }
