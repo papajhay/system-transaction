@@ -18,7 +18,8 @@ use App\Service\DepositExecutor;
 use DateTimeImmutable;
 use Symfony\Component\Uid\Uuid;
 use Symfony\Component\Messenger\MessageBusInterface;
-use App\Message\ExecuteTransferMessage;
+use App\Message\ExecuteDepositMessage;
+use Psr\Log\LoggerInterface;
 
 final class DepositProcessor implements ProcessorInterface
 {
@@ -26,6 +27,7 @@ final class DepositProcessor implements ProcessorInterface
         private readonly EntityManagerInterface $entityManager,
         private readonly DepositExecutor $depositExecutor,
         private readonly MessageBusInterface $messageBus,
+        private readonly LoggerInterface $logger,
     ) {
     }
 
@@ -84,7 +86,17 @@ final class DepositProcessor implements ProcessorInterface
 
         $this->entityManager->persist($transfer);
         $this->entityManager->flush();
-        $this->messageBus->dispatch(new ExecuteTransferMessage($transfer->getReference()));
+        $this->logger->info('deposit.created', [
+            'reference' => $transfer->getReference(),
+            'status' => $transfer->getStatus()->value,
+            'created_at' => $now->format(DateTimeImmutable::ATOM),
+        ]);
+        $this->messageBus->dispatch(new ExecuteDepositMessage($transfer->getReference()));
+        $this->logger->info('deposit.message_dispatched', [
+            'reference' => $transfer->getReference(),
+            'transport' => 'deposit',
+            'dispatched_at' => (new DateTimeImmutable())->format(DateTimeImmutable::ATOM),
+        ]);
 
         return new TransactionResponse(
             201,
