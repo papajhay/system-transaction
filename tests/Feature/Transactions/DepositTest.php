@@ -7,6 +7,8 @@ namespace App\Tests\Feature\Transactions;
 use App\Entity\Transfer;
 use App\Enum\StatusTransfer;
 use App\Enum\TypeTransfer;
+use App\Message\ExecuteDepositMessage;
+use App\MessageHandler\ExecuteDepositMessageHandler;
 use PHPUnit\Framework\Attributes\Test;
 
 final class DepositTest extends TransactionTestCase
@@ -66,6 +68,37 @@ final class DepositTest extends TransactionTestCase
             type: TypeTransfer::DEPOSIT,
             status: StatusTransfer::COMPLETED
         );
+    }
+
+    #[Test]
+    public function dispatchedPendingDepositIsCompletedByTheMessengerHandler(): void
+    {
+        $this->client->jsonRequest('POST', '/api/transactions/init-deposit', [
+            'account_number' => $this->account->getAccountNumber(),
+            'amount' => 10.00,
+        ]);
+
+        self::assertResponseStatusCodeSame(201);
+        $reference = $this->responseJson()['data']['reference'];
+        $deposit = $this->entityManager->getRepository(Transfer::class)->findOneBy(['reference' => $reference]);
+        self::assertSame(StatusTransfer::PENDING, $deposit?->getStatus());
+
+        $transport = static::getContainer()->get('messenger.transport.deposit');
+        $envelope = null;
+        foreach (array_reverse($transport->getSent()) as $candidate) {
+            if (($message = $candidate->getMessage()) instanceof ExecuteDepositMessage
+                && $message->reference === $reference) {
+                $envelope = $candidate;
+                break;
+            }
+        }
+        self::assertNotNull($envelope);
+
+        static::getContainer()->get(ExecuteDepositMessageHandler::class)($envelope->getMessage());
+
+        $this->entityManager->clear();
+        $deposit = $this->entityManager->getRepository(Transfer::class)->findOneBy(['reference' => $reference]);
+        self::assertSame(StatusTransfer::COMPLETED, $deposit?->getStatus());
     }
 
     #[Test]

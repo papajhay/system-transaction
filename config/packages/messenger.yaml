@@ -49,6 +49,21 @@ framework:
                     delay: 1000
                     multiplier: 2
                     max_delay: 30000
+            deposit:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    exchange:
+                        name: messages
+                        type: direct
+                        default_publish_routing_key: deposit
+                    queues:
+                        deposit:
+                            binding_keys: [deposit]
+                retry_strategy:
+                    max_retries: 3
+                    delay: 1000
+                    multiplier: 2
+                    max_delay: 30000
             failed: 'doctrine://default?queue_name=failed'
             # sync: 'sync://'
 
@@ -66,6 +81,7 @@ framework:
             App\Message\GenerateDailyTransactionReportMessage: async
             App\Message\ExecuteTransferMessage: transfer
             App\Message\ExecuteWithdrawalMessage: withdrawal
+            App\Message\ExecuteDepositMessage: deposit
 
             # Route your messages to the transports
             # 'App\Message\YourMessage': async
