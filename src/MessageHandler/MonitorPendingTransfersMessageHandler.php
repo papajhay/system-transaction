@@ -33,6 +33,11 @@ final class MonitorPendingTransfersMessageHandler
             if ($this->messageBus !== null) {
                 foreach ($overdue as $pendingTransfer) {
                     $this->messageBus->dispatch(new ExecuteTransferMessage($pendingTransfer->reference));
+                    $this->logger->info('transfer.recovery_message_dispatched', [
+                        'reference' => $pendingTransfer->reference,
+                        'transport' => 'transfer',
+                        'elapsed_seconds' => $pendingTransfer->elapsedSeconds,
+                    ]);
                 }
             } elseif ($this->autoExecutor !== null) {
                 // Backward-compatible fallback for direct service wiring.

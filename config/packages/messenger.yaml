@@ -19,6 +19,21 @@ framework:
                     delay: 1000
                     multiplier: 2
                     max_delay: 30000
+            transfer:
+                dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
+                options:
+                    exchange:
+                        name: messages
+                        type: direct
+                        default_publish_routing_key: transfert
+                    queues:
+                        transfert:
+                            binding_keys: [transfert]
+                retry_strategy:
+                    max_retries: 3
+                    delay: 1000
+                    multiplier: 2
+                    max_delay: 30000
             failed: 'doctrine://default?queue_name=failed'
             # sync: 'sync://'
 
@@ -34,7 +49,7 @@ framework:
 
             App\Message\MonitorPendingTransfersMessage: async
             App\Message\GenerateDailyTransactionReportMessage: async
-            App\Message\ExecuteTransferMessage: async
+            App\Message\ExecuteTransferMessage: transfer
 
             # Route your messages to the transports
             # 'App\Message\YourMessage': async

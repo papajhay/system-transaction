@@ -10,11 +10,29 @@ use App\Enum\StatusTransfer;
 use App\Enum\TypeAccount;
 use App\Enum\TypeFee;
 use App\Enum\TypeTransfer;
+use App\MessageHandler\ExecuteTransferMessageHandler;
 use DateTimeImmutable;
 use PHPUnit\Framework\Attributes\Test;
 
 final class TransferTest extends TransactionTestCase
 {
+    #[Test]
+    public function dispatchedPendingTransferIsCompletedByTheMessengerHandler(): void
+    {
+        $receiver = $this->account('ACC-MESSENGER-OK');
+        $token = $this->initMono($receiver, 10, 'messenger execution');
+        $transfer = $this->entityManager->getRepository(Transfer::class)->findOneBy(['token' => $token]);
+        self::assertNotNull($transfer);
+
+        $transport = static::getContainer()->get('messenger.transport.transfer');
+        $envelope = $transport->getSent()[count($transport->getSent()) - 1];
+        static::getContainer()->get(ExecuteTransferMessageHandler::class)($envelope->getMessage());
+
+        $this->entityManager->clear();
+        $transfer = $this->entityManager->getRepository(Transfer::class)->findOneBy(['token' => $token]);
+        self::assertSame(StatusTransfer::COMPLETED, $transfer?->getStatus());
+    }
+
     #[Test]
     public function authenticatedUserCanInitializeAMonoTransfer(): void
     {
