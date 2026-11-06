@@ -7,6 +7,7 @@ namespace App\Tests\Feature\Admin;
 use App\Entity\Transfer;
 use App\Enum\TypeFee;
 use App\Enum\TypeTransfer;
+use App\Enum\StatusAccount;
 use App\Form\TransferType;
 use App\Tests\Feature\Transactions\TransactionTestCase;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -74,10 +75,10 @@ final class TransferTypeTest extends TransactionTestCase
 
         $form->submit($submittedData);
 
-        self::assertTrue($form->isValid(), json_encode(
+        self::assertTrue($form->isValid(), implode('; ', array_map(
+            static fn ($error): string => $error->getMessage(),
             iterator_to_array($form->getErrors(true)),
-            JSON_THROW_ON_ERROR,
-        ));
+        )));
         self::assertSame($type, $form->getData()->getType());
         self::assertTrue($form->has('feeAmount'));
         self::assertTrue($form->has('feeRate'));
@@ -145,6 +146,56 @@ final class TransferTypeTest extends TransactionTestCase
             'The source and destination accounts must be different.',
             (string) $form->get('to_account_number')->getErrors()[0]->getMessage(),
         );
+    }
+
+    #[Test]
+    public function itRejectsAClosedAccountWithoutChangingTheSubmittedValue(): void
+    {
+        $this->account->setStatus(StatusAccount::CLOSED);
+        $this->entityManager->flush();
+
+        $form = static::getContainer()->get(FormFactoryInterface::class)->create(TransferType::class, new Transfer(), [
+            'csrf_protection' => false,
+            'dynamic_transfer_form' => true,
+        ]);
+        $form->submit([
+            'type' => TypeTransfer::DEPOSIT->value,
+            'account_number' => (string) $this->account->getId(),
+            'amount' => 10,
+            'feeType' => TypeFee::FREE_CHARGED->value,
+        ]);
+
+        self::assertFalse($form->isValid());
+        self::assertSame((string) $this->account->getId(), $form->get('account_number')->getViewData());
+        self::assertSame(
+            'This account is closed and cannot be used for this operation.',
+            (string) $form->get('account_number')->getErrors()[0]->getMessage(),
+        );
+    }
+
+    #[Test]
+    public function itDoesNotValidateHiddenAccountFields(): void
+    {
+        $this->systemAccount->setStatus(StatusAccount::CLOSED);
+        $this->entityManager->flush();
+
+        $form = static::getContainer()->get(FormFactoryInterface::class)->create(TransferType::class, new Transfer(), [
+            'csrf_protection' => false,
+            'dynamic_transfer_form' => true,
+        ]);
+        $form->submit([
+            'type' => TypeTransfer::DEPOSIT->value,
+            'account_number' => (string) $this->account->getId(),
+            'from_account_number' => (string) $this->systemAccount->getId(),
+            'to_account_number' => (string) $this->systemAccount->getId(),
+            'amount' => 10,
+            'feeType' => TypeFee::FREE_CHARGED->value,
+        ]);
+
+        self::assertTrue($form->isValid(), implode('; ', array_map(
+            static fn ($error): string => $error->getMessage(),
+            iterator_to_array($form->getErrors(true)),
+        )));
     }
 
     /** @return iterable<string, array{TypeTransfer, TypeFee}> */

@@ -16,7 +16,10 @@ use Symfony\Component\Uid\Uuid;
 
 final class TransferInitializer
 {
-    public function __construct(private readonly EntityManagerInterface $entityManager)
+    public function __construct(
+        private readonly EntityManagerInterface $entityManager,
+        private readonly AccountValidationService $accountValidation,
+    )
     {
     }
 
@@ -127,6 +130,14 @@ final class TransferInitializer
                 'The %s account "%s" does not exist.',
                 $role === '' ? 'account' : $role,
                 $accountNumber,
+            ));
+        }
+
+        $validation = $this->accountValidation->validate($account);
+        if (!$validation['valid']) {
+            throw new \InvalidArgumentException(sprintf(
+                'The %s account is not active.',
+                $role === '' ? 'account' : $role,
             ));
         }
 
