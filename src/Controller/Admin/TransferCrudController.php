@@ -37,6 +37,7 @@ use Symfony\Component\HttpFoundation\RequestStack;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 use Symfony\Component\Form\FormFactoryInterface;
 use Symfony\Component\Form\FormBuilderInterface;
+use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Doctrine\ORM\EntityManagerInterface;
 
 final class TransferCrudController extends AbstractCrudController
@@ -45,6 +46,7 @@ final class TransferCrudController extends AbstractCrudController
         private readonly FormFactoryInterface $formFactory,
         private readonly TransferInitializer $transferInitializer,
         private readonly RequestStack $requestStack,
+        private readonly UrlGeneratorInterface $urlGenerator,
     )
     {
     }
@@ -171,6 +173,14 @@ final class TransferCrudController extends AbstractCrudController
         $formOptions->setIfNotSet('translation_domain', $context->getI18n()->getTranslationDomain());
         $formOptions->set('attr.class', trim(($formOptions->get('attr.class') ?? '').' ea-new-form'));
         $formOptions->set('attr.id', sprintf('new-%s-form', $entityDto->getName()));
+        $formOptions->set(
+            'attr.data-account-validation-url',
+            $this->urlGenerator->generate('admin_transfer_validate_account'),
+        );
+        $formOptions->set(
+            'attr.data-balance-validation-url',
+            $this->urlGenerator->generate('admin_transfer_validate_balance'),
+        );
 
         return $this->formFactory->createNamedBuilder(
             $entityDto->getName(),

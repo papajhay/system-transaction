@@ -9,6 +9,7 @@ use App\Entity\Transfer;
 use App\Enum\TypeFee;
 use App\Enum\TypeTransfer;
 use App\Form\TypeTransferType;
+use App\Service\AccountValidationService;
 use Symfony\Component\Form\AbstractType;
 use Symfony\Bridge\Doctrine\Form\Type\EntityType;
 use Symfony\Component\Form\Extension\Core\Type\NumberType;
@@ -27,6 +28,10 @@ use Symfony\Component\Validator\Context\ExecutionContextInterface;
 
 final class TransferType extends AbstractType
 {
+    public function __construct(private readonly AccountValidationService $accountValidation)
+    {
+    }
+
     public function buildForm(FormBuilderInterface $builder, array $options): void
     {
         $submittedData = null;
@@ -79,6 +84,22 @@ final class TransferType extends AbstractType
 
         $builder->addEventListener(FormEvents::POST_SUBMIT, function (FormEvent $event) use (&$submittedData): void {
             $form = $event->getForm();
+
+            foreach (['account_number', 'from_account_number', 'to_account_number'] as $accountField) {
+                if (!$form->has($accountField) || $form->get($accountField)->isDisabled()) {
+                    continue;
+                }
+                $validation = $this->accountValidation->validate($form->get($accountField)->getData());
+                if ($validation['valid']) {
+                    continue;
+                }
+                $message = match ($validation['code']) {
+                    'closed' => 'This account is closed and cannot be used for this operation.',
+                    'inactive' => 'This account is inactive and cannot be used for this operation.',
+                    default => 'The account number entered does not exist. Please check it and try again.',
+                };
+                $form->get($accountField)->addError(new FormError($message));
+            }
 
             if ($form->has('from_account_number') && $form->has('to_account_number')) {
                 $from = $form->get('from_account_number')->getData();
@@ -227,6 +248,9 @@ final class TransferType extends AbstractType
             'row_attr' => [
                 'data-transfer-account' => $name,
                 'hidden' => !$enabled,
+            ],
+            'attr' => [
+                'data-action' => 'blur->transfer-type#validateField change->transfer-type#validateField',
             ],
         ]);
     }
