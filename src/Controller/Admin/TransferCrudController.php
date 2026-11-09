@@ -217,6 +217,23 @@ final class TransferCrudController extends AbstractCrudController
         $entityManager->flush();
     }
 
+    protected function getRedirectResponseAfterSave(
+        AdminContext $context,
+        string $action,
+    ): RedirectResponse {
+        if ($action === Action::NEW) {
+            $url = $this->container->get(AdminUrlGenerator::class)
+                ->setController(self::class)
+                ->setAction(Crud::PAGE_INDEX)
+                ->unset(EA::ENTITY_ID)
+                ->generateUrl();
+
+            return $this->redirect($url);
+        }
+
+        return parent::getRedirectResponseAfterSave($context, $action);
+    }
+
     public function viewOperation(AdminContext $context): RedirectResponse
     {
         /** @var Transfer $transfer */
