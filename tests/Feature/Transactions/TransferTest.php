@@ -357,13 +357,69 @@ final class TransferTest extends TransactionTestCase
 
         $this->entityManager->clear();
         $sender = $this->entityManager->find(Account::class, $this->account->getId());
+        $usdSystem = $this->entityManager->find(Account::class, $this->systemAccount->getId());
         $receiver = $this->entityManager->getRepository(Account::class)->findOneBy(['accountNumber' => 'EUR-654-321']);
         $eurSystem = $this->entityManager->getRepository(Account::class)->findOneBy(['accountNumber' => 'EUR-SYSTEM']);
         $conversion = $this->entityManager->getRepository(Conversion::class)->findOneBy([]);
-        self::assertSame('100.00', number_format((float) $sender?->getBalance(), 2, '.', ''));
+        $transfer = $this->entityManager->getRepository(Transfer::class)->findOneBy(['token' => $token]);
+        $fee = $this->entityManager->getRepository(Fee::class)->findOneBy(['transfer' => $transfer]);
+        self::assertSame('95.00', number_format((float) $sender?->getBalance(), 2, '.', ''));
         self::assertSame('46.50', number_format((float) $receiver?->getBalance(), 2, '.', ''));
+        self::assertSame('5.15', number_format((float) $usdSystem?->getBalance(), 2, '.', ''));
         self::assertSame('3.50', number_format((float) $eurSystem?->getBalance(), 2, '.', ''));
+        self::assertSame(TypeFee::FEE_CHARGED_RATE, $transfer?->getFeeType());
+        self::assertSame('5.00', number_format((float) $transfer?->getFeeAmount(), 2, '.', ''));
+        self::assertSame('5.00', number_format((float) $fee?->getAmount(), 2, '.', ''));
         self::assertSame('0.930000', number_format((float) $conversion?->getExchangeRate(), 6, '.', ''));
+    }
+
+    #[Test]
+    public function crossCurrencyTransferPreservesFixedFee(): void
+    {
+        $this->account->setBalance('1000.00');
+        $this->entityManager->persist(
+            (new Fee())->setType(TypeFee::FEE_CHARGED_FIXED)->setAmount(5.0)
+        );
+        $this->entityManager->flush();
+        [$receiver] = $this->crossCurrencyFixture();
+
+        $token = $this->initMono($receiver, 50, 'FX fixed fee');
+        $this->execute('/api/transactions/execute-mono-transfer', ['token' => $token]);
+        self::assertResponseStatusCodeSame(201);
+
+        $this->entityManager->clear();
+        $transfer = $this->entityManager->getRepository(Transfer::class)->findOneBy(['token' => $token]);
+        $fee = $this->entityManager->getRepository(Fee::class)->findOneBy(['transfer' => $transfer]);
+        $sender = $this->entityManager->find(Account::class, $this->account->getId());
+
+        self::assertSame('945.00', number_format((float) $sender?->getBalance(), 2, '.', ''));
+        self::assertSame(TypeFee::FEE_CHARGED_FIXED, $transfer?->getFeeType());
+        self::assertSame('5.00', number_format((float) $transfer?->getFeeAmount(), 2, '.', ''));
+        self::assertSame('5.00', number_format((float) $fee?->getAmount(), 2, '.', ''));
+    }
+
+    #[Test]
+    public function crossCurrencyTransferPreservesFreeFee(): void
+    {
+        $this->entityManager->persist(
+            (new Fee())->setType(TypeFee::FREE_CHARGED)->setAmount(0.0)
+        );
+        $this->entityManager->flush();
+        [$receiver] = $this->crossCurrencyFixture();
+
+        $token = $this->initMono($receiver, 50, 'FX free fee');
+        $this->execute('/api/transactions/execute-mono-transfer', ['token' => $token]);
+        self::assertResponseStatusCodeSame(201);
+
+        $this->entityManager->clear();
+        $transfer = $this->entityManager->getRepository(Transfer::class)->findOneBy(['token' => $token]);
+        $fee = $this->entityManager->getRepository(Fee::class)->findOneBy(['transfer' => $transfer]);
+        $sender = $this->entityManager->find(Account::class, $this->account->getId());
+
+        self::assertSame('100.00', number_format((float) $sender?->getBalance(), 2, '.', ''));
+        self::assertSame(TypeFee::FREE_CHARGED, $transfer?->getFeeType());
+        self::assertSame('0.00', number_format((float) $transfer?->getFeeAmount(), 2, '.', ''));
+        self::assertSame('0.00', number_format((float) $fee?->getAmount(), 2, '.', ''));
     }
 
     #[Test]
@@ -408,6 +464,44 @@ final class TransferTest extends TransactionTestCase
             'to_account_number' => $to->getAccountNumber(), 
             'amount' => $amount, 
             'description' => $description];
+    }
+
+    /** @return array{0: Account, 1: Account} */
+    private function crossCurrencyFixture(): array
+    {
+        $eur = (new Currency())->setCode('EUR')->setName('Euro')->setSymbol('€');
+        $receiver = (new Account())
+            ->setAccountNumber('EUR-654-321')
+            ->setBalance('0.00')
+            ->setCurrency($eur)
+            ->setStatus(StatusAccount::ACTIVE)
+            ->setType(TypeAccount::USER)
+            ->setCreatedAt(new DateTimeImmutable())
+            ->setUpdatedAt(new DateTimeImmutable());
+        $eurSystem = (new Account())
+            ->setAccountNumber('EUR-SYSTEM')
+            ->setBalance('0.00')
+            ->setCurrency($eur)
+            ->setStatus(StatusAccount::ACTIVE)
+            ->setType(TypeAccount::SYSTEM)
+            ->setSystemName('fees')
+            ->setCreatedAt(new DateTimeImmutable())
+            ->setUpdatedAt(new DateTimeImmutable());
+        $rate = (new ExchangeRate())
+            ->setBaseCurrency($this->currency)
+            ->setTargetCurrency($eur)
+            ->setRate('0.93')
+            ->setRateDate(new DateTimeImmutable())
+            ->setCreatedAt(new DateTimeImmutable())
+            ->setUpdatedAt(new DateTimeImmutable());
+
+        $this->entityManager->persist($eur);
+        $this->entityManager->persist($receiver);
+        $this->entityManager->persist($eurSystem);
+        $this->entityManager->persist($rate);
+        $this->entityManager->flush();
+
+        return [$receiver, $eurSystem];
     }
 
     private function initMono(Account $to, float $amount, string $description): string 

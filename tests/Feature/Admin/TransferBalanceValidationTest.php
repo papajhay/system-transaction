@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace App\Tests\Feature\Admin;
 
+use App\Entity\Account;
+use App\Entity\Currency;
 use App\Enum\TypeFee;
 use App\Enum\TypeTransfer;
+use App\Enum\StatusAccount;
+use App\Enum\TypeAccount;
 use App\Service\TransferBalanceValidationService;
 use App\Tests\Feature\Transactions\TransactionTestCase;
 use PHPUnit\Framework\Attributes\Test;
@@ -53,6 +57,36 @@ final class TransferBalanceValidationTest extends TransactionTestCase
         self::assertSame('10.00', $result['fees']);
         self::assertSame('155.00', $result['total']);
         self::assertSame('5.00', $result['missing']);
+    }
+
+    #[Test]
+    public function includesConfiguredFeeForCrossCurrencyTransfers(): void
+    {
+        $eur = (new Currency())
+            ->setCode('EUR')
+            ->setName('Euro')
+            ->setSymbol('€');
+        $destination = (new Account())
+            ->setAccountNumber('EUR-VALIDATION')
+            ->setBalance('0.00')
+            ->setCurrency($eur)
+            ->setStatus(StatusAccount::ACTIVE)
+            ->setType(TypeAccount::USER)
+            ->setCreatedAt(new \DateTimeImmutable())
+            ->setUpdatedAt(new \DateTimeImmutable());
+        $this->entityManager->persist($eur);
+        $this->entityManager->persist($destination);
+        $this->entityManager->flush();
+
+        $result = $this->validate(TypeTransfer::TRANSFER, '145.00', [
+            'destination_account_number' => $destination->getAccountNumber(),
+            'feeType' => TypeFee::FEE_CHARGED_FIXED->value,
+            'feeAmount' => '10.00',
+        ]);
+
+        self::assertFalse($result['valid']);
+        self::assertSame('10.00', $result['fees']);
+        self::assertSame('155.00', $result['total']);
     }
 
     #[Test]

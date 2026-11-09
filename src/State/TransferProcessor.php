@@ -4,7 +4,7 @@ namespace App\State;
 use ApiPlatform\Metadata\Operation;
 use ApiPlatform\State\ProcessorInterface;
 use App\Dto\{ExecuteMultiTransferInput,ExecuteTransferInput,InitMultiTransferInput,InitTransferInput,TransactionResponse};
-use App\Entity\{Account,Transfer};
+use App\Entity\{Account,Fee,Transfer};
 use App\Enum\{StatusTransfer,TypeTransfer};
 use App\Service\OnDemandExchangeRateService;
 use App\Service\FeeCalculator;
@@ -72,10 +72,8 @@ final class TransferProcessor implements ProcessorInterface
         $sender=$this->account($from);
         $receiver=$this->account($to);
         $value=round((float)$amount,2,PHP_ROUND_HALF_UP);
-        $cross = $sender->getCurrency()?->getId() !== $receiver->getCurrency()?->getId();
-        $fee = $cross
-            ? 0.0
-            : $this->feeCalculator->calculate((int) round($value * 100), null, true)['amount'] / 100;
+        $feeDetails = $this->feeCalculator->calculate((int) round($value * 100), null, true);
+        $fee = $feeDetails['amount'] / 100;
         $debitAmount=$this->money($value+$fee);
         if(bccomp(bcsub($sender->getBalance(),$debitAmount,2),'0.00',2)<0)throw new BadRequestHttpException('Insufficient balance');
         $rate=$this->rate($sender,$receiver);
@@ -91,12 +89,24 @@ final class TransferProcessor implements ProcessorInterface
             ->setReceivedCurrency($receiver->getCurrency())
             ->setExchangeRate(number_format($rate,10,'.',''))
             ->setType(TypeTransfer::TRANSFER)
+            ->setFeeType($feeDetails['type'])
+            ->setFeeRate($feeDetails['rate'] ?? 0.0)
+            ->setFeeAmount($fee)
             ->setStatus(StatusTransfer::PENDING)
             ->setDescription($description)
             ->setExpiresAt($now->modify('+10 minutes'))
             ->setCreatedAt($now)
             ->setUpdatedAt($now);
         $this->entityManager->persist($t);
+        $this->entityManager->persist(
+            (new Fee())
+                ->setTransfer($t)
+                ->setType($feeDetails['type'])
+                ->setRate($feeDetails['rate'])
+                ->setAmount($fee)
+                ->setCreatedAt($now)
+                ->setUpdatedAt($now)
+        );
     
         return $t;
     }

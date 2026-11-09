@@ -79,9 +79,7 @@ final class TransferExecutor implements PendingTransferExecutionService
         }
 
         $crossCurrency = $senderCurrency->getId() !== $receiverCurrency->getId();
-        $feeDetails = $crossCurrency
-            ? ['amount' => 0, 'type' => TypeFee::FREE_CHARGED, 'rate' => null]
-            : $this->feeCalculator->calculateForTransfer($amountCents, $transfer, true);
+        $feeDetails = $this->feeCalculator->calculateForTransfer($amountCents, $transfer, true);
         $feeCents = $feeDetails['amount'];
         $debitCents = $amountCents + $feeCents;
 
@@ -110,8 +108,8 @@ final class TransferExecutor implements PendingTransferExecutionService
             if ($convertedCents <= 0) {
                 throw new BadRequestHttpException('The received transfer amount must be greater than zero.');
             }
-            $this->debit($sender, $amountCents, $transfer, $now);
-            $this->credit($sourceSystem, $amountCents, $transfer, $now);
+            $this->debit($sender, $debitCents, $transfer, $now);
+            $this->credit($sourceSystem, $debitCents, $transfer, $now);
             $this->debit($sourceSystem, $amountCents, $transfer, $now);
             // The target system receives the source amount; the converted
             // amount is debited when it is paid out to the receiver.
@@ -128,18 +126,18 @@ final class TransferExecutor implements PendingTransferExecutionService
                 ->setCreatedAt($now)->setUpdatedAt($now));
         }
 
-        $fee = $transfer->getFee() ?? new Fee();
-        $fee->setTransfer($transfer)
-            ->setType($feeDetails['type'])
-            ->setRate($feeDetails['rate'])
-            ->setAmount($feeCents / 100)
-            ->setCreatedAt($fee->getCreatedAt() ?? $now)
-            ->setUpdatedAt($now);
-        $this->entityManager->persist($fee);
-        $transfer->setFeeType($feeDetails['type'])
-            ->setFeeRate($feeDetails['rate'] ?? 0.0)
-            ->setFeeAmount($feeCents / 100)
-            ->markCompleted();
+        $fee = $transfer->getFee();
+        if (!$fee instanceof Fee) {
+            $fee = (new Fee())
+                ->setTransfer($transfer)
+                ->setType($transfer->getFeeType())
+                ->setRate($transfer->getFeeRate())
+                ->setAmount($transfer->getFeeAmount())
+                ->setCreatedAt($now)
+                ->setUpdatedAt($now);
+            $this->entityManager->persist($fee);
+        }
+        $transfer->markCompleted();
     }
 
     public function find(string $tokenOrReference, bool $lock = false): Transfer

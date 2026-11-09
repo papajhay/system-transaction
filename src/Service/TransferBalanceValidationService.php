@@ -46,12 +46,6 @@ final class TransferBalanceValidationService
             ->setFeeAmount($this->floatValue($data['feeAmount'] ?? 0))
             ->setFeeRate($this->floatValue($data['feeRate'] ?? 0));
         $fee = $this->feeCalculator->calculateForTransfer($amount, $transfer);
-        if ($type === TypeTransfer::TRANSFER) {
-            $destination = $this->accountValidation->validateAccountNumber($data['destination_account_number'] ?? null)['account'];
-            if ($destination instanceof Account && $destination->getCurrency()?->getId() !== $account->getCurrency()?->getId()) {
-                $fee = ['amount' => 0, 'type' => TypeFee::FREE_CHARGED, 'rate' => null];
-            }
-        }
         $available = $this->cents($account->getBalance());
         $total = $amount + $fee['amount'];
 

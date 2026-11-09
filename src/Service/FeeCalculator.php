@@ -78,10 +78,8 @@ final class FeeCalculator
     ): array {
         $type = $transfer->getFeeType();
 
-        // Pending transfers persist their selected fee on Transfer. Prefer
-        // that configuration when it is complete, even if an old or missing
-        // Fee row is still associated with the transfer.
-        if ($type === TypeFee::FEE_CHARGED_FIXED && $transfer->getFeeAmount() > 0) {
+        // feeAmount is the immutable snapshot created with the transfer.
+        if ($type === TypeFee::FEE_CHARGED_FIXED) {
             return [
                 'amount' => $this->fixedAmount($transfer->getFeeAmount()),
                 'type' => TypeFee::FEE_CHARGED_FIXED,
@@ -89,8 +87,20 @@ final class FeeCalculator
             ];
         }
 
-        if ($type === TypeFee::FEE_CHARGED_RATE && $transfer->getFeeRate() >= 0) {
-            return $this->percentage($transfer->getFeeRate(), $amountCents);
+        if ($type === TypeFee::FEE_CHARGED_RATE) {
+            return [
+                'amount' => $this->cents((string) $transfer->getFeeAmount()),
+                'type' => TypeFee::FEE_CHARGED_RATE,
+                'rate' => $transfer->getFeeRate(),
+            ];
+        }
+
+        if ($type === TypeFee::FREE_CHARGED) {
+            return [
+                'amount' => 0,
+                'type' => TypeFee::FREE_CHARGED,
+                'rate' => null,
+            ];
         }
 
         return $this->calculate(
