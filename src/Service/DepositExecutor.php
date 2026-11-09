@@ -95,19 +95,19 @@ final class DepositExecutor implements PendingTransferExecutionService
                 $this->operation($system, TypeOperation::CREDIT, $feeCents, $systemBefore, $systemAfter, $transfer, $now);
             }
 
-            $fee = $transfer->getFee() ?? new Fee();
-            $fee->setTransfer($transfer)
-                ->setType($feeDetails['type'])
-                ->setRate($feeDetails['rate'])
-                ->setAmount($feeCents / 100)
-                ->setCreatedAt($fee->getCreatedAt() ?? $now)
-                ->setUpdatedAt($now);
-            $this->entityManager->persist($fee);
+            $fee = $transfer->getFee();
+            if (!$fee instanceof Fee) {
+                $fee = (new Fee())
+                    ->setTransfer($transfer)
+                    ->setType($transfer->getFeeType())
+                    ->setRate($transfer->getFeeRate())
+                    ->setAmount($transfer->getFeeAmount())
+                    ->setCreatedAt($now)
+                    ->setUpdatedAt($now);
+                $this->entityManager->persist($fee);
+            }
 
-            $transfer->setFeeType($feeDetails['type'])
-                ->setFeeRate($feeDetails['rate'] ?? 0.0)
-                ->setFeeAmount($feeCents / 100)
-                ->markCompleted();
+            $transfer->markCompleted();
             $this->entityManager->flush();
 
             return [

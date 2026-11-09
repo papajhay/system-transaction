@@ -68,7 +68,8 @@ final class ExecuteTransferCommandTest extends TransactionTestCase
     public function appliesPercentageFeeAndPersistsRateAndAmount(): void
     {
         $receiver = $this->account('CMD-TRF-RATE');
-        $transfer = $this->pendingTransfer($receiver, '100.00', 'CMD-TRF-RATE-REF');
+        $transfer = $this->pendingTransfer($receiver, '100.00', 'CMD-TRF-RATE-REF')
+            ->setFeeType(TypeFee::FEE_CHARGED_RATE);
         $this->entityManager->persist((new Fee())->setTransfer($transfer)->setType(TypeFee::FEE_CHARGED_RATE)->setRate(5.0));
         $this->entityManager->flush();
 
