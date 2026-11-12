@@ -74,6 +74,7 @@ final class WithdrawalExecutor implements PendingTransferExecutionService
 
             $feeDetails = $this->feeCalculator->calculateForTransfer($amountCents, $transfer);
             $feeCents = $feeDetails['amount'];
+            $this->recordFee($transfer, $feeDetails, new DateTimeImmutable());
             $debitCents = $amountCents + $feeCents;
             $this->entityManager->lock($account, LockMode::PESSIMISTIC_WRITE);
             $before = $this->cents($account->getBalance());
@@ -105,18 +106,6 @@ final class WithdrawalExecutor implements PendingTransferExecutionService
                 $this->operation($system, TypeOperation::CREDIT, $feeCents, $systemBefore, $systemAfter, $transfer, $now);
             }
 
-            $fee = $transfer->getFee();
-            if (!$fee instanceof Fee) {
-                $fee = (new Fee())
-                    ->setTransfer($transfer)
-                    ->setType($transfer->getFeeType())
-                    ->setRate($transfer->getFeeRate())
-                    ->setAmount($transfer->getFeeAmount())
-                    ->setCreatedAt($now)
-                    ->setUpdatedAt($now);
-                $this->entityManager->persist($fee);
-            }
-
             $transfer->markCompleted();
             $this->entityManager->flush();
 
@@ -129,6 +118,20 @@ final class WithdrawalExecutor implements PendingTransferExecutionService
                 'fee' => $this->money($feeCents),
             ];
         });
+    }
+
+    /** @param array{amount:int,type:TypeFee,rate:?float} $feeDetails */
+    private function recordFee(Transfer $transfer, array $feeDetails, DateTimeImmutable $now): void
+    {
+        $transfer->setFeeType($feeDetails['type'])
+            ->setFeeRate($feeDetails['rate'] ?? 0.0)
+            ->setFeeAmount($feeDetails['amount'] / 100);
+        $fee = $transfer->getFee() ?? (new Fee())->setTransfer($transfer)->setCreatedAt($now);
+        $fee->setType($feeDetails['type'])
+            ->setRate($feeDetails['rate'])
+            ->setAmount($feeDetails['amount'] / 100)
+            ->setUpdatedAt($now);
+        $this->entityManager->persist($fee);
     }
 
     private function operation(Account $account, TypeOperation $type, int $amount, int $before, int $after, Transfer $transfer, DateTimeImmutable $now): void

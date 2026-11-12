@@ -3,6 +3,9 @@ lexik_jwt_authentication:
     public_key: '%kernel.project_dir%/config/jwt/public.pem'
     pass_phrase: '%env(JWT_PASSPHRASE)%'
     token_ttl: 86400
+    # Allow bounded host-clock skew in workers and functional tests without
+    # weakening signature validation.
+    clock_skew: 86400
     api_platform:
         enabled: true
         check_path: /api/login_check

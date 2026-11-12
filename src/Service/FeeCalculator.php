@@ -76,6 +76,15 @@ final class FeeCalculator
         Transfer $transfer,
         bool $useLegacyTransferDefault = false,
     ): array {
+        // A fee row attached to a transfer is the authoritative fee snapshot.
+        // CLI-created transfers may not have copied that snapshot into the
+        // denormalized fields on Transfer, so resolving only those fields
+        // silently turns configured fees into free fees.
+        $associatedFee = $transfer->getFee();
+        if ($associatedFee instanceof Fee) {
+            return $this->fromFee($associatedFee, $amountCents);
+        }
+
         $type = $transfer->getFeeType();
 
         // feeAmount is the immutable snapshot created with the transfer.
@@ -96,11 +105,7 @@ final class FeeCalculator
         }
 
         if ($type === TypeFee::FREE_CHARGED) {
-            return [
-                'amount' => 0,
-                'type' => TypeFee::FREE_CHARGED,
-                'rate' => null,
-            ];
+            return $this->calculate($amountCents, null, $useLegacyTransferDefault);
         }
 
         return $this->calculate(

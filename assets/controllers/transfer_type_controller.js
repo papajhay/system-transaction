@@ -156,6 +156,9 @@ export default class extends Controller {
                 return;
             }
         }
+
+        // Validation obligatoire du solde avant soumission.
+        // Le popup unavailable est autorisé uniquement ici.
         if (!(await this.validateBalance(true))) {
             return;
         }
@@ -225,8 +228,22 @@ export default class extends Controller {
             }
             return false;
         } catch (error) {
+            if (requestId !== this.balanceRequestId) {
+                return true;
+            }
+
             this.lastBalanceValid = false;
-            this.showDialog('unavailable', type === 'transfer' ? 'source' : 'account', source);
+             // Ne pas afficher Validation unavailable lors d'une
+            // modification de Fee Fixed, Fee Rate ou du montant.
+            // Le popup reste disponible lors de la soumission.
+            if (showUnavailable) {
+                this.showDialog(
+                    'unavailable',
+                    type === 'transfer' ? 'source' : 'account',
+                    source
+                );
+            }
+
             return false;
         }
     }
@@ -236,6 +253,7 @@ export default class extends Controller {
         const accountNumber = option?.textContent?.trim() || field.value?.trim();
         if (!accountNumber) {
             this.setFieldStatus(field, 'error', 'Choose an account.');
+
             return false;
         }
 
@@ -252,15 +270,18 @@ export default class extends Controller {
             this.validationInProgress = false;
             if (result.valid) {
                 this.setFieldStatus(field, 'success', 'Account is active and ready to use.');
+                
                 return true;
             }
             this.setFieldStatus(field, 'error');
             this.showDialog(result.code, role, field);
+
             return false;
         } catch (error) {
             this.validationInProgress = false;
             this.setFieldStatus(field, 'error');
             this.showDialog('unavailable', role, field);
+            
             return false;
         }
     }

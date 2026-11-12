@@ -44,7 +44,10 @@ abstract class TransactionTestCase extends WebTestCase
             );
         }
 
-        $this->client = static::createClient();
+        // BrowserKit can retain default server parameters between clients.
+        // Start each test with an explicitly empty auth header; authenticate()
+        // below then installs a fresh JWT for this test only.
+        $this->client = static::createClient([], ['HTTP_AUTHORIZATION' => '']);
 
         $this->entityManager = static::getContainer()
             ->get(EntityManagerInterface::class);
@@ -159,9 +162,11 @@ abstract class TransactionTestCase extends WebTestCase
         /*
          * Keep the JWT on every subsequent API request.
          */
-        $this->client->setServerParameter(
-            'HTTP_AUTHORIZATION',
-            'Bearer ' . $response['token']
-        );
+        // Replace the complete default server set so a prior test's cleared
+        // authorization value cannot remain in BrowserKit's request state.
+        $this->client->setServerParameters([
+            'HTTP_USER_AGENT' => 'Symfony BrowserKit',
+            'HTTP_AUTHORIZATION' => 'Bearer ' . $response['token'],
+        ]);
     }
 }
