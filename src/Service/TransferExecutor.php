@@ -82,6 +82,7 @@ final class TransferExecutor implements PendingTransferExecutionService
         $feeDetails = $this->feeCalculator->calculateForTransfer($amountCents, $transfer, true);
         $feeCents = $feeDetails['amount'];
         $debitCents = $amountCents + $feeCents;
+        $this->recordFee($transfer, $feeDetails, $amountCents, new DateTimeImmutable());
 
         $this->entityManager->lock($sender, LockMode::PESSIMISTIC_WRITE);
         $this->entityManager->lock($receiver, LockMode::PESSIMISTIC_WRITE);
@@ -126,18 +127,21 @@ final class TransferExecutor implements PendingTransferExecutionService
                 ->setCreatedAt($now)->setUpdatedAt($now));
         }
 
-        $fee = $transfer->getFee();
-        if (!$fee instanceof Fee) {
-            $fee = (new Fee())
-                ->setTransfer($transfer)
-                ->setType($transfer->getFeeType())
-                ->setRate($transfer->getFeeRate())
-                ->setAmount($transfer->getFeeAmount())
-                ->setCreatedAt($now)
-                ->setUpdatedAt($now);
-            $this->entityManager->persist($fee);
-        }
         $transfer->markCompleted();
+    }
+
+    /** @param array{amount:int,type:TypeFee,rate:?float} $feeDetails */
+    private function recordFee(Transfer $transfer, array $feeDetails, int $amountCents, DateTimeImmutable $now): void
+    {
+        $transfer->setFeeType($feeDetails['type'])
+            ->setFeeRate($feeDetails['rate'] ?? 0.0)
+            ->setFeeAmount($feeDetails['amount'] / 100);
+        $fee = $transfer->getFee() ?? (new Fee())->setTransfer($transfer)->setCreatedAt($now);
+        $fee->setType($feeDetails['type'])
+            ->setRate($feeDetails['rate'])
+            ->setAmount($feeDetails['amount'] / 100)
+            ->setUpdatedAt($now);
+        $this->entityManager->persist($fee);
     }
 
     public function find(string $tokenOrReference, bool $lock = false): Transfer

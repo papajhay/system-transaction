@@ -94,7 +94,7 @@ final class TransferProcessor implements ProcessorInterface
             ->setFeeAmount($fee)
             ->setStatus(StatusTransfer::PENDING)
             ->setDescription($description)
-            ->setExpiresAt($now->modify('+10 minutes'))
+            ->setExpiresAt($now->modify('+1 day'))
             ->setCreatedAt($now)
             ->setUpdatedAt($now);
         $this->entityManager->persist($t);
